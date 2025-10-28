@@ -1,0 +1,61 @@
+# Python cache
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+*.egg
+*.egg-info
+dist
+build
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.cache
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Logs
+logs/
+*.log
+
+# Documentation
+README.md
+INSTALLATION.md
+QUICK_START.md
+*.md
+
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Uploads (will be in volume)
+uploads/*
+
+# Scripts (not needed in container)
+scripts/

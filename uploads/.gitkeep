@@ -1,0 +1,2 @@
+# This directory stores uploaded files (receipts, product images, QR codes)
+# .gitkeep ensures the directory exists in git

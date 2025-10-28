@@ -1,0 +1,112 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: pizzamat_postgres
+    environment:
+      POSTGRES_USER: pizzamat
+      POSTGRES_PASSWORD: pizzamat_dev_password
+      POSTGRES_DB: pizzamatif
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pizzamat"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - pizzamat_network
+
+  # Redis (for caching and session management)
+  redis:
+    image: redis:7-alpine
+    container_name: pizzamat_redis
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - pizzamat_network
+
+  # Backend API (FastAPI)
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: pizzamat_backend
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://pizzamat:pizzamat_dev_password@postgres:5432/pizzamatif
+      - REDIS_URL=redis://redis:6379/0
+      - JWT_SECRET=dev_jwt_secret_change_in_production_min_32_chars
+      - DEBUG=true
+      - ALLOWED_ORIGINS=["http://localhost:3000","http://localhost:5173"]
+    volumes:
+      - ./backend:/app
+      - uploads:/app/uploads
+      - ./logs/backend:/app/logs
+    ports:
+      - "8000:8000"
+    command: >
+      sh -c "
+        alembic upgrade head &&
+        uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+      "
+    restart: unless-stopped
+    networks:
+      - pizzamat_network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Frontend (React + Vite)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    container_name: pizzamat_frontend
+    depends_on:
+      - backend
+    environment:
+      - VITE_API_URL=http://localhost:8000/api/v1
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    ports:
+      - "5173:5173"
+    command: npm run dev
+    restart: unless-stopped
+    networks:
+      - pizzamat_network
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  uploads:
+    driver: local
+
+networks:
+  pizzamat_network:
+    driver: bridge

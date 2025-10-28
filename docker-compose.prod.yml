@@ -1,0 +1,105 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: pizzamat_postgres_prod
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:5432:5432"  # Only localhost
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    restart: always
+    networks:
+      - pizzamat_network
+
+  # Redis (for caching and session management)
+  redis:
+    image: redis:7-alpine
+    container_name: pizzamat_redis_prod
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD}
+    volumes:
+      - redis_data:/data
+    ports:
+      - "127.0.0.1:6379:6379"  # Only localhost
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    restart: always
+    networks:
+      - pizzamat_network
+
+  # Backend API (FastAPI)
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: pizzamat_backend_prod
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379/0
+      - JWT_SECRET=${JWT_SECRET}
+      - DEBUG=false
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS}
+    volumes:
+      - uploads:/app/uploads
+      - ./logs/backend:/app/logs
+    ports:
+      - "127.0.0.1:8000:8000"  # Only localhost, use nginx reverse proxy
+    command: >
+      sh -c "
+        alembic upgrade head &&
+        uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4
+      "
+    restart: always
+    networks:
+      - pizzamat_network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+  # Frontend (React + Vite) - Production build
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      target: production
+    container_name: pizzamat_frontend_prod
+    depends_on:
+      - backend
+    ports:
+      - "127.0.0.1:5173:80"  # Nginx serves on port 80
+    restart: always
+    networks:
+      - pizzamat_network
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  uploads:
+    driver: local
+
+networks:
+  pizzamat_network:
+    driver: bridge
