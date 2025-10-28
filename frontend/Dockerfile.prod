@@ -7,16 +7,16 @@ WORKDIR /app
 ARG VITE_API_URL
 ARG NODE_ENV=production
 
+# Set environment variables
+ENV VITE_API_URL=$VITE_API_URL
+ENV NODE_ENV=$NODE_ENV
+
 # Copy package files
 COPY package*.json ./
 
-# Install ALL dependencies INCLUDING devDependencies (needed for build)
-# Don't set NODE_ENV=production yet, as it would skip devDependencies
-RUN npm install
-
-# NOW set environment variables for the build process
-ENV VITE_API_URL=$VITE_API_URL
-ENV NODE_ENV=$NODE_ENV
+# Install ALL dependencies INCLUDING devDependencies
+# Use --production=false to force install devDependencies even when NODE_ENV=production
+RUN npm install --production=false
 
 # Copy source code
 COPY . .
