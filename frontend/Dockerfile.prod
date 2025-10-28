@@ -23,7 +23,8 @@ COPY . .
 # Build the application
 # TypeScript will run first, then Vite build
 # RUN npm run build
-RUN npx vite build
+# RUN npx vite build
+RUN node_modules/.bin/vite build
 
 # Production stage
 FROM node:20-alpine
