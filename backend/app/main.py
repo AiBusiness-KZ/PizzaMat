@@ -79,6 +79,23 @@ async def health_check():
     }
 
 
+@app.get("/debug-info")
+async def debug_info():
+    """Debug info endpoint - shows current configuration"""
+    from app.config import settings
+    return {
+        "DEBUG": settings.DEBUG,
+        "docs_enabled": app.docs_url is not None,
+        "docs_url": app.docs_url,
+        "redoc_url": app.redoc_url,
+        "ALLOWED_ORIGINS": settings.origins[:2] if len(settings.origins) > 0 else [],
+        "WEBAPP_URL": settings.WEBAPP_URL,
+        "DATABASE_CONNECTED": "Check /health for status",
+        "UPLOAD_DIR": settings.UPLOAD_DIR,
+        "MAX_FILE_SIZE": settings.MAX_FILE_SIZE,
+    }
+
+
 @app.get("/")
 async def root():
     """Root endpoint"""
