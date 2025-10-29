@@ -109,14 +109,27 @@ async def root():
 
 
 # Import and include routers
+# from app.routes import menu, locations, admin, auth, analytics, bot_api
+#
+# app.include_router(auth.router)
+# app.include_router(menu.router)
+# app.include_router(locations.router)
+# app.include_router(admin.router)
+# app.include_router(analytics.router)
+# app.include_router(bot_api.router)
+
+
+# Import and include routers
 from app.routes import menu, locations, admin, auth, analytics, bot_api
 
-app.include_router(auth.router)
-app.include_router(menu.router)
-app.include_router(locations.router)
-app.include_router(admin.router)
-app.include_router(analytics.router)
-app.include_router(bot_api.router)
+# Add API prefix to all routers
+app.include_router(auth.router, prefix="/api")
+app.include_router(menu.router, prefix="/api")
+app.include_router(locations.router, prefix="/api")
+app.include_router(admin.router, prefix="/api")
+app.include_router(analytics.router, prefix="/api")
+app.include_router(bot_api.router, prefix="/api")
+
 
 
 if __name__ == "__main__":
