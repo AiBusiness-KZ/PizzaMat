@@ -131,7 +131,7 @@ class InteractionLoggingMiddleware(BaseMiddleware):
                         fsm_state=fsm_state,
                         is_successful=is_successful,
                         error_message=error_message,
-                        metadata={
+                        meta_data={
                             "duration_ms": int((datetime.utcnow() - interaction_data["timestamp"]).total_seconds() * 1000)
                         }
                     )

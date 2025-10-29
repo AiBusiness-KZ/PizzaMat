@@ -105,7 +105,7 @@ class N8NClient:
         event_type: str,
         user_id: int,
         telegram_id: int,
-        metadata: Optional[Dict[str, Any]] = None
+        meta_data: Optional[Dict[str, Any]] = None
     ) -> Optional[Dict[str, Any]]:
         """
         Send analytics event to n8n for processing/storage
@@ -114,7 +114,7 @@ class N8NClient:
             "event_type": event_type,
             "user_id": user_id,
             "telegram_id": telegram_id,
-            "metadata": metadata or {},
+            "meta_data": meta_data or {},
             "trigger_source": "telegram_bot"
         }
 

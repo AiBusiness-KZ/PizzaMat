@@ -59,7 +59,7 @@ def upgrade() -> None:
         sa.Column('bot_response', sa.Text(), nullable=True),
         sa.Column('bot_response_type', sa.String(length=50), nullable=True),
         sa.Column('fsm_state', sa.String(length=100), nullable=True),
-        sa.Column('metadata', postgresql.JSONB(astext_type=sa.Text()), nullable=True),
+        sa.Column('meta_data', postgresql.JSONB(astext_type=sa.Text()), nullable=True),
         sa.Column('is_successful', sa.Boolean(), nullable=True, server_default='true'),
         sa.Column('error_message', sa.Text(), nullable=True),
         sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=True),

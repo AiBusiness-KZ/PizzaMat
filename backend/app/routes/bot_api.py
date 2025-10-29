@@ -53,7 +53,7 @@ class InteractionLogRequest(BaseModel):
     bot_response: Optional[str] = None
     bot_response_type: Optional[str] = None
     fsm_state: Optional[str] = None
-    metadata: Optional[dict] = None
+    meta_data: Optional[dict] = None
     is_successful: bool = True
     error_message: Optional[str] = None
 
@@ -269,7 +269,7 @@ async def log_interaction(request: InteractionLogRequest, db: AsyncSession = Dep
         bot_response=request.bot_response,
         bot_response_type=request.bot_response_type,
         fsm_state=request.fsm_state,
-        metadata=request.metadata,
+        meta_data=request.meta_data,
         is_successful=request.is_successful,
         error_message=request.error_message
     )

@@ -206,7 +206,7 @@ class BackendAPIClient:
         bot_response: Optional[str] = None,
         bot_response_type: Optional[str] = None,
         fsm_state: Optional[str] = None,
-        metadata: Optional[Dict[str, Any]] = None,
+        meta_data: Optional[Dict[str, Any]] = None,
         is_successful: bool = True,
         error_message: Optional[str] = None
     ) -> Optional[Dict[str, Any]]:
@@ -224,7 +224,7 @@ class BackendAPIClient:
             "bot_response": bot_response,
             "bot_response_type": bot_response_type,
             "fsm_state": fsm_state,
-            "metadata": metadata,
+            "meta_data": meta_data,
             "is_successful": is_successful,
             "error_message": error_message
         }
