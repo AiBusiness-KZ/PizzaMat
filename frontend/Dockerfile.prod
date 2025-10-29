@@ -38,4 +38,5 @@ COPY --from=builder /app/dist ./dist
 EXPOSE 3000
 
 # Serve the static files
-CMD ["serve", "-s", "dist", "-l", "3000"]
+# CMD ["serve", "-s", "dist", "-l", "3000"]
+CMD ["sh", "-c", "echo 'Starting frontend...' && ls -la /app && echo 'Checking dist...' && ls -la /app/dist && echo 'Starting serve...' && serve -s dist -l 3000"]
