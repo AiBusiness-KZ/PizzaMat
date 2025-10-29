@@ -58,4 +58,4 @@ QUICK_START.md
 uploads/*
 
 # Scripts (not needed in container)
-scripts/
+# scripts/
