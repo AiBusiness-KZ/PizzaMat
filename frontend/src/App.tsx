@@ -27,6 +27,9 @@ import { ProductEdit } from "./pages/admin/products/edit";
 import { LocationList } from "./pages/admin/locations/list";
 import { LocationCreate } from "./pages/admin/locations/create";
 import { LocationEdit } from "./pages/admin/locations/edit";
+import { CityList } from "./pages/admin/cities/list";
+import { CityCreate } from "./pages/admin/cities/create";
+import { CityEdit } from "./pages/admin/cities/edit";
 import { SettingsEdit } from "./pages/admin/settings/edit";
 
 export default function App() {
@@ -79,6 +82,16 @@ export default function App() {
                 },
               },
               {
+                name: "cities",
+                list: "/admin/cities",
+                create: "/admin/cities/create",
+                edit: "/admin/cities/edit/:id",
+                meta: {
+                  label: "Города",
+                  icon: <EnvironmentOutlined />,
+                },
+              },
+              {
                 name: "settings",
                 list: "/admin/settings",
                 meta: {
@@ -123,6 +136,12 @@ export default function App() {
                   <Route index element={<LocationList />} />
                   <Route path="create" element={<LocationCreate />} />
                   <Route path="edit/:id" element={<LocationEdit />} />
+                </Route>
+
+                <Route path="cities">
+                  <Route index element={<CityList />} />
+                  <Route path="create" element={<CityCreate />} />
+                  <Route path="edit/:id" element={<CityEdit />} />
                 </Route>
 
                 <Route path="settings">

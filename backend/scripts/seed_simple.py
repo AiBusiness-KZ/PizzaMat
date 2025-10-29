@@ -17,7 +17,16 @@ async def seed_database():
     
     async with async_session_maker() as session:
         # Clear existing data
-        await session.execute(text("TRUNCATE categories, products, locations RESTART IDENTITY CASCADE"))
+        await session.execute(text("TRUNCATE categories, products, locations, cities RESTART IDENTITY CASCADE"))
+        
+        # Add cities first
+        await session.execute(text("""
+            INSERT INTO cities (name, is_active) VALUES
+            ('Київ', true),
+            ('Львів', true),
+            ('Одеса', true)
+        """))
+        print("✅ Added cities")
         
         # Add categories
         await session.execute(text("""
@@ -58,12 +67,12 @@ async def seed_database():
         """))
         print("✅ Added products")
         
-        # Add locations
+        # Add locations (with city_id references)
         await session.execute(text("""
-            INSERT INTO locations (location_id, city, name, address, is_active) VALUES
-            ('kyiv-center', 'Київ', 'Центральний вокзал', 'вул. Вокзальна, 1', true),
-            ('lviv-market', 'Львів', 'Ринок Галицький', 'пл. Ринок, 10', true),
-            ('odesa-beach', 'Одеса', 'Аркадія', 'Аркадія, пляж', true)
+            INSERT INTO locations (city_id, name, address, working_hours, is_active) VALUES
+            (1, 'Центральний вокзал', 'вул. Вокзальна, 1', '08:00-22:00', true),
+            (2, 'Ринок Галицький', 'пл. Ринок, 10', '09:00-21:00', true),
+            (3, 'Аркадія', 'Аркадія, пляж', '10:00-23:00', true)
         """))
         print("✅ Added locations")
         
