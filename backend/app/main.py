@@ -109,12 +109,14 @@ async def root():
 
 
 # Import and include routers
-from app.routes import menu, locations, admin, auth
+from app.routes import menu, locations, admin, auth, analytics, bot_api
 
 app.include_router(auth.router)
 app.include_router(menu.router)
 app.include_router(locations.router)
 app.include_router(admin.router)
+app.include_router(analytics.router)
+app.include_router(bot_api.router)
 
 
 if __name__ == "__main__":
