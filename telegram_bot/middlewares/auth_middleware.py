@@ -1,23 +1,22 @@
 """
 Authentication middleware to check user registration
 """
-
 from aiogram import BaseMiddleware
 from aiogram.types import Message, CallbackQuery, TelegramObject
+from aiogram.fsm.context import FSMContext
 from typing import Callable, Dict, Any, Awaitable
 import logging
-
 from services.api_client import api_client
+from states import RegistrationStates
 
 logger = logging.getLogger(__name__)
-
 
 class AuthMiddleware(BaseMiddleware):
     """
     Middleware to check if user is registered
     If not registered, redirects to registration flow
     """
-
+    
     async def __call__(
         self,
         handler: Callable[[TelegramObject, Dict[str, Any]], Awaitable[Any]],
@@ -28,24 +27,32 @@ class AuthMiddleware(BaseMiddleware):
         Check user authentication
         """
         telegram_id = None
-
+        
         # Extract telegram_id
         if isinstance(event, Message):
             telegram_id = event.from_user.id
         elif isinstance(event, CallbackQuery):
             telegram_id = event.from_user.id
-
+        
         if not telegram_id:
             return await handler(event, data)
-
+        
         # Skip auth check for /start command (registration)
         if isinstance(event, Message) and event.text and event.text.startswith("/start"):
             return await handler(event, data)
-
+        
+        # Skip auth check if user is in registration flow
+        state: FSMContext = data.get("state")
+        if state:
+            current_state = await state.get_state()
+            if current_state and current_state.startswith("RegistrationStates:"):
+                # User is in registration process, allow
+                return await handler(event, data)
+        
         # Check if user exists in database
         try:
             user = await api_client.get_user(telegram_id)
-
+            
             if user:
                 # User exists, add to data
                 data["user"] = user
@@ -66,7 +73,7 @@ class AuthMiddleware(BaseMiddleware):
                         show_alert=True
                     )
                 return  # Stop processing
-
+                
         except Exception as e:
             logger.error(f"Auth check error: {e}")
             # Continue processing even on error
