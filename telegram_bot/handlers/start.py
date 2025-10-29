@@ -39,9 +39,7 @@ async def cmd_start(message: Message, state: FSMContext):
             "uk": f"Привіт, {user['full_name']}! 👋\n\n"
                   f"Рад бачити вас знову! Використовуйте меню нижче для навігації.",
             "en": f"Hello, {user['full_name']}! 👋\n\n"
-                  f"Good to see you again! Use the menu below for navigation.",
-            "ru": f"Привет, {user['full_name']}! 👋\n\n"
-                  f"Рад видеть вас снова! Используйте меню ниже для навигации."
+                  f"Good to see you again! Use the menu below for navigation."
         }
 
         await message.answer(
@@ -59,10 +57,7 @@ async def cmd_start(message: Message, state: FSMContext):
                   "📱 Поділіться номером телефону, щоб продовжити:",
             "en": "👋 Welcome to PizzaMat!\n\n"
                   "To place orders, please register.\n\n"
-                  "📱 Share your phone number to continue:",
-            "ru": "👋 Добро пожаловать в PizzaMat!\n\n"
-                  "Для оформления заказов, пожалуйста, зарегистрируйтесь.\n\n"
-                  "📱 Поделитесь номером телефона, чтобы продолжить:"
+                  "📱 Share your phone number to continue:"
         }
 
         language_code = message.from_user.language_code or "uk"
@@ -90,8 +85,7 @@ async def process_phone(message: Message, state: FSMContext):
     if message.contact.user_id != message.from_user.id:
         error_texts = {
             "uk": "❌ Будь ласка, поділіться саме своїм номером телефону.",
-            "en": "❌ Please share your own phone number.",
-            "ru": "❌ Пожалуйста, поделитесь именно своим номером телефона."
+            "en": "❌ Please share your own phone number."
         }
         await message.answer(
             error_texts.get(language, error_texts["uk"]),
@@ -111,9 +105,7 @@ async def process_phone(message: Message, state: FSMContext):
         "uk": "✅ Дякуємо!\n\n"
               "Тепер введіть ваше повне ім'я:",
         "en": "✅ Thank you!\n\n"
-              "Now enter your full name:",
-        "ru": "✅ Спасибо!\n\n"
-              "Теперь введите ваше полное имя:"
+              "Now enter your full name:"
     }
 
     await message.answer(
@@ -136,8 +128,7 @@ async def process_name(message: Message, state: FSMContext):
     if len(full_name) < 2:
         error_texts = {
             "uk": "❌ Будь ласка, введіть коректне ім'я (мінімум 2 символи).",
-            "en": "❌ Please enter a valid name (at least 2 characters).",
-            "ru": "❌ Пожалуйста, введите корректное имя (минимум 2 символа)."
+            "en": "❌ Please enter a valid name (at least 2 characters)."
         }
         await message.answer(error_texts.get(language, error_texts["uk"]))
         return
@@ -158,8 +149,7 @@ async def process_name(message: Message, state: FSMContext):
 
     city_texts = {
         "uk": "🌆 Оберіть ваше місто:",
-        "en": "🌆 Select your city:",
-        "ru": "🌆 Выберите ваш город:"
+        "en": "🌆 Select your city:"
     }
 
     await message.answer(
@@ -211,11 +201,7 @@ async def finalize_registration(message: Message, state: FSMContext, city_id: in
             "en": f"✅ Registration completed successfully!\n\n"
                   f"Welcome, {full_name}! 🎉\n\n"
                   f"Now you can order pizza through our bot.\n"
-                  f"Use the menu below for navigation.",
-            "ru": f"✅ Регистрация успешно завершена!\n\n"
-                  f"Добро пожаловать, {full_name}! 🎉\n\n"
-                  f"Теперь вы можете заказывать пиццу через наш бот.\n"
-                  f"Используйте меню ниже для навигации."
+                  f"Use the menu below for navigation."
         }
 
         await message.answer(
@@ -230,8 +216,7 @@ async def finalize_registration(message: Message, state: FSMContext, city_id: in
     else:
         error_texts = {
             "uk": "❌ Помилка при реєстрації. Спробуйте ще раз: /start",
-            "en": "❌ Registration error. Please try again: /start",
-            "ru": "❌ Ошибка при регистрации. Попробуйте ещё раз: /start"
+            "en": "❌ Registration error. Please try again: /start"
         }
 
         await message.answer(error_texts.get(language, error_texts["uk"]))
