@@ -1,10 +1,11 @@
 import { DataProvider } from "@refinedev/core";
 import axios from "axios";
 
-const API_URL = "http://localhost:8000";
+// Use relative path for API calls (works with proxy in dev and production)
+const API_URL = "";
 
 // Helper to convert File objects to FormData
-const toFormData = (obj: Record<string, any>): FormData => {
+const toFormData = (obj: any): FormData => {
   const formData = new FormData();
   Object.keys(obj).forEach((key) => {
     const value = obj[key];

@@ -7,14 +7,7 @@ export const ProductList = () => {
   });
 
   return (
-    <List
-      headerButtons={({ defaultButtons }) => (
-        <>
-          {defaultButtons}
-          <CreateButton />
-        </>
-      )}
-    >
+    <List>
       <Table {...tableProps} rowKey="id">
         <Table.Column dataIndex="id" title="ID" width={70} />
         <Table.Column 
@@ -22,7 +15,7 @@ export const ProductList = () => {
           title="Изображение"
           width={120}
           render={(value: string) => (
-            value ? <ImageField value={`http://localhost:8000${value}`} width={80} /> : null
+            value ? <ImageField value={value} width={80} /> : null
           )}
         />
         <Table.Column dataIndex="name" title="Название" />

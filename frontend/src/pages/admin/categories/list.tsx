@@ -7,14 +7,7 @@ export const CategoryList = () => {
   });
 
   return (
-    <List
-      headerButtons={({ defaultButtons }) => (
-        <>
-          {defaultButtons}
-          <CreateButton />
-        </>
-      )}
-    >
+    <List>
       <Table {...tableProps} rowKey="id">
         <Table.Column dataIndex="id" title="ID" width={70} />
         <Table.Column dataIndex="name" title="Название" />
