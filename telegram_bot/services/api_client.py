@@ -87,12 +87,12 @@ class BackendAPIClient:
 
     async def get_categories(self) -> Optional[List[Dict[str, Any]]]:
         """Get all active categories"""
-        result = await self._request("GET", "/categories")
+        result = await self._request("GET", "/api/categories")
         return result if result else []
 
     async def get_products(self, category_id: Optional[int] = None) -> Optional[List[Dict[str, Any]]]:
         """Get all active products"""
-        endpoint = "/products"
+        endpoint = "/api/products"
         if category_id:
             endpoint += f"?category_id={category_id}"
         result = await self._request("GET", endpoint)
@@ -100,7 +100,7 @@ class BackendAPIClient:
 
     async def get_locations(self, city_id: Optional[int] = None) -> Optional[List[Dict[str, Any]]]:
         """Get all active pickup locations"""
-        endpoint = "/pickup-locations"
+        endpoint = "/api/pickup-locations"
         if city_id:
             endpoint += f"?city_id={city_id}"
         result = await self._request("GET", endpoint)
@@ -108,7 +108,7 @@ class BackendAPIClient:
 
     async def get_cities(self) -> Optional[List[Dict[str, Any]]]:
         """Get all active cities"""
-        result = await self._request("GET", "/cities")
+        result = await self._request("GET", "/api/cities")
         return result if result else []
 
     # ==================== Order Endpoints ====================
