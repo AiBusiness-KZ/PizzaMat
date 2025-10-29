@@ -80,7 +80,7 @@ class BotInteraction(Base):
     fsm_state = Column(String(100), nullable=True)  # Current FSM state
 
     # Additional data
-    metadata = Column(JSONB, nullable=True)  # Any extra data: buttons clicked, webapp data, etc.
+    meta_data = Column(JSONB, nullable=True)  # Any extra data: buttons clicked, webapp data, etc.
 
     # Success/Error tracking
     is_successful = Column(Boolean, default=True)
