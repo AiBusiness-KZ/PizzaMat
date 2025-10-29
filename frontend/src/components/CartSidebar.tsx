@@ -1,5 +1,6 @@
 import { X, Minus, Plus, ShoppingBag } from 'lucide-react';
 import { CartItem } from '@/hooks/useCart';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 interface CartSidebarProps {
   isOpen: boolean;
@@ -20,6 +21,8 @@ export default function CartSidebar({
   totalAmount,
   onCheckout,
 }: CartSidebarProps) {
+  const { t } = useLanguage();
+  
   if (!isOpen) return null;
 
   return (
@@ -32,7 +35,7 @@ export default function CartSidebar({
           <div className="flex items-center justify-between p-4 border-b">
             <div className="flex items-center space-x-2">
               <ShoppingBag className="w-5 h-5 text-orange-500" />
-              <h2 className="text-lg font-semibold">Кошик</h2>
+              <h2 className="text-lg font-semibold">{t('cart.title')}</h2>
               <span className="bg-orange-100 text-orange-800 text-xs font-medium px-2 py-1 rounded-full">
                 {items.length}
               </span>
@@ -50,7 +53,8 @@ export default function CartSidebar({
             {items.length === 0 ? (
               <div className="text-center py-12">
                 <ShoppingBag className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-                <p className="text-gray-500">Кошик порожній</p>
+                <p className="text-gray-500">{t('cart.empty')}</p>
+                <p className="text-sm text-gray-400 mt-2">{t('cart.emptyText')}</p>
               </div>
             ) : (
               <div className="space-y-4">
@@ -107,14 +111,14 @@ export default function CartSidebar({
           {items.length > 0 && (
             <div className="border-t p-4">
               <div className="flex justify-between items-center mb-4">
-                <span className="text-lg font-semibold">Всього:</span>
+                <span className="text-lg font-semibold">{t('cart.total')}:</span>
                 <span className="text-xl font-bold text-orange-600">{totalAmount} ₴</span>
               </div>
               <button
                 onClick={onCheckout}
                 className="w-full bg-orange-500 hover:bg-orange-600 text-white font-medium py-3 rounded-lg transition-colors"
               >
-                Оформити замовлення
+                {t('cart.checkout')}
               </button>
             </div>
           )}

@@ -8,7 +8,7 @@ from ..models.product import Category, Product
 from ..schemas.category import CategoryResponse
 from ..schemas.product import ProductResponse
 
-router = APIRouter(prefix="/api", tags=["menu"])
+router = APIRouter(prefix="", tags=["menu"])
 
 
 @router.get("/categories", response_model=dict)

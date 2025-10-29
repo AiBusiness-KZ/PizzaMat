@@ -12,6 +12,7 @@ import {
 
 import "@refinedev/antd/dist/reset.css";
 
+import { LanguageProvider } from "./contexts/LanguageContext";
 import { dataProvider } from "./providers/dataProvider";
 import HomePage from "./pages/Home";
 
@@ -31,9 +32,10 @@ import { SettingsEdit } from "./pages/admin/settings/edit";
 export default function App() {
   return (
     <BrowserRouter>
-      <ConfigProvider theme={RefineThemes.Blue}>
-        <AntdApp>
-          <Refine
+      <LanguageProvider>
+        <ConfigProvider theme={RefineThemes.Blue}>
+          <AntdApp>
+            <Refine
             dataProvider={dataProvider}
             routerProvider={routerProvider}
             notificationProvider={notificationProvider}
@@ -131,9 +133,10 @@ export default function App() {
               {/* Catch all */}
               <Route path="*" element={<NavigateToResource resource="dashboard" />} />
             </Routes>
-          </Refine>
-        </AntdApp>
-      </ConfigProvider>
+            </Refine>
+          </AntdApp>
+        </ConfigProvider>
+      </LanguageProvider>
     </BrowserRouter>
   );
 }

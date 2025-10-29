@@ -2,8 +2,10 @@ import { useState, useEffect } from 'react';
 import { ShoppingCart, MapPin } from 'lucide-react';
 import { Category, Product, PickupLocation } from '@/shared/types';
 import { useCart } from '@/hooks/useCart';
+import { useLanguage } from '@/contexts/LanguageContext';
 import ProductCard from '@/components/ProductCard';
 import CartSidebar from '@/components/CartSidebar';
+import LanguageSwitch from '@/components/LanguageSwitch';
 import { useNavigate } from 'react-router';
 
 export default function Home() {
@@ -15,6 +17,7 @@ export default function Home() {
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+  const { t } = useLanguage();
 
   const {
     items,
@@ -60,11 +63,11 @@ export default function Home() {
 
   const handleCheckout = () => {
     if (!selectedLocation) {
-      alert('Будь ласка, виберіть точку видачі');
+      alert(t('messages.selectLocation'));
       return;
     }
     if (items.length === 0) {
-      alert('Кошик порожній');
+      alert(t('messages.emptyCart'));
       return;
     }
     setIsCartOpen(false);
@@ -79,7 +82,7 @@ export default function Home() {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500"></div>
-        <p className="mt-4 text-gray-600">Завантажуємо меню...</p>
+        <p className="mt-4 text-gray-600">{t('messages.loading')}</p>
       </div>
     );
   }
@@ -90,11 +93,12 @@ export default function Home() {
         <div className="max-w-6xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">🍕 PizzaMat</h1>
-              <p className="text-sm text-gray-600">Смачна піца з автоматів</p>
+              <h1 className="text-2xl font-bold text-gray-900">🍕 {t('app.title')}</h1>
+              <p className="text-sm text-gray-600">{t('app.subtitle')}</p>
             </div>
             
             <div className="flex items-center space-x-4">
+              <LanguageSwitch />
               <div className="flex items-center space-x-2">
                 <MapPin className="w-4 h-4 text-gray-500" />
                 <select
@@ -102,7 +106,7 @@ export default function Home() {
                   onChange={(e) => setSelectedLocation(e.target.value)}
                   className="text-sm border border-gray-300 rounded-lg px-2 py-1 focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                 >
-                  <option value="">Виберіть точку видачі</option>
+                  <option value="">{t('location.placeholder')}</option>
                   {pickupLocations.map(location => (
                     <option key={location.location_id} value={location.location_id}>
                       {location.city} - {location.name}
@@ -138,7 +142,7 @@ export default function Home() {
                   : 'text-gray-600 hover:text-gray-900'
               }`}
             >
-              Всі
+              {t('navigation.all')}
             </button>
             {categories.map(category => (
               <button
@@ -161,7 +165,7 @@ export default function Home() {
         {!selectedLocation && (
           <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
             <p className="text-yellow-800 font-medium">
-              ⚠️ Будь ласка, виберіть точку видачі для оформлення замовлення
+              {t('messages.locationWarning')}
             </p>
           </div>
         )}
@@ -178,7 +182,7 @@ export default function Home() {
 
         {filteredProducts.length === 0 && (
           <div className="text-center py-12">
-            <p className="text-gray-500 text-lg">У цій категорії поки немає товарів</p>
+            <p className="text-gray-500 text-lg">{t('category.empty')}</p>
           </div>
         )}
       </main>

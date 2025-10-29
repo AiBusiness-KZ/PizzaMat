@@ -1,0 +1,40 @@
+{
+  "app": {
+    "title": "PizzaMat",
+    "subtitle": "Delicious pizza from vending machines"
+  },
+  "navigation": {
+    "all": "All"
+  },
+  "location": {
+    "select": "Select pickup point",
+    "placeholder": "Select pickup point"
+  },
+  "category": {
+    "empty": "No products in this category yet"
+  },
+  "cart": {
+    "title": "Cart",
+    "empty": "Your cart is empty",
+    "emptyText": "Add items from menu",
+    "total": "Total",
+    "checkout": "Checkout",
+    "quantity": "Quantity",
+    "remove": "Remove"
+  },
+  "product": {
+    "addToCart": "Add to Cart",
+    "outOfStock": "Out of Stock"
+  },
+  "messages": {
+    "selectLocation": "Please select a pickup point",
+    "emptyCart": "Cart is empty",
+    "locationWarning": "⚠️ Please select a pickup point to place an order",
+    "loading": "Loading menu..."
+  },
+  "language": {
+    "select": "Language",
+    "uk": "Українська",
+    "en": "English"
+  }
+}

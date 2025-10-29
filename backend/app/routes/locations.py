@@ -6,7 +6,7 @@ from ..database import get_db
 from ..models.location import Location
 from ..schemas.location import LocationResponse
 
-router = APIRouter(prefix="/api", tags=["locations"])
+router = APIRouter(prefix="", tags=["locations"])
 
 
 @router.get("/pickup-locations", response_model=dict)
