@@ -1,6 +1,6 @@
+
 # Multi-stage build for production frontend
 FROM node:20-alpine AS builder
-
 WORKDIR /app
 
 # Declare build arguments
@@ -29,46 +29,48 @@ FROM nginx:alpine
 # Copy built files to nginx
 COPY --from=builder /app/dist /usr/share/nginx/html
 
-# Create nginx configuration
-RUN echo 'server { \n\
-    listen 80; \n\
-    server_name _; \n\
-    root /usr/share/nginx/html; \n\
-    index index.html; \n\
-    \n\
-    # Enable access and error logs \n\
-    access_log /var/log/nginx/access.log; \n\
-    error_log /var/log/nginx/error.log warn; \n\
-    \n\
-    # Security headers \n\
-    add_header X-Frame-Options "SAMEORIGIN" always; \n\
-    add_header X-Content-Type-Options "nosniff" always; \n\
-    add_header X-XSS-Protection "1; mode=block" always; \n\
-    \n\
-    # Gzip compression \n\
-    gzip on; \n\
-    gzip_vary on; \n\
-    gzip_min_length 1024; \n\
-    gzip_types text/plain text/css text/xml text/javascript application/x-javascript application/javascript application/xml+rss application/json; \n\
-    \n\
-    # SPA routing - all routes go to index.html \n\
-    location / { \n\
-        try_files $uri $uri/ /index.html; \n\
-    } \n\
-    \n\
-    # Cache static assets \n\
-    location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$ { \n\
-        expires 1y; \n\
-        add_header Cache-Control "public, immutable"; \n\
-    } \n\
-    \n\
-    # Health check endpoint \n\
-    location /health { \n\
-        access_log off; \n\
-        return 200 "healthy\n"; \n\
-        add_header Content-Type text/plain; \n\
-    } \n\
-}' > /etc/nginx/conf.d/default.conf
+# Create nginx configuration using cat with heredoc (правильный способ!)
+RUN cat > /etc/nginx/conf.d/default.conf <<'EOF'
+server {
+    listen 80;
+    server_name _;
+    root /usr/share/nginx/html;
+    index index.html;
+    
+    # Enable access and error logs
+    access_log /var/log/nginx/access.log;
+    error_log /var/log/nginx/error.log warn;
+    
+    # Security headers
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-XSS-Protection "1; mode=block" always;
+    
+    # Gzip compression
+    gzip on;
+    gzip_vary on;
+    gzip_min_length 1024;
+    gzip_types text/plain text/css text/xml text/javascript application/x-javascript application/javascript application/xml+rss application/json;
+    
+    # SPA routing - all routes go to index.html
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+    
+    # Cache static assets
+    location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$ {
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+    }
+    
+    # Health check endpoint
+    location /health {
+        access_log off;
+        return 200 "healthy\n";
+        add_header Content-Type text/plain;
+    }
+}
+EOF
 
 # Redirect logs to stdout/stderr for Docker
 RUN ln -sf /dev/stdout /var/log/nginx/access.log \
@@ -78,3 +80,5 @@ EXPOSE 80
 
 # Start nginx
 CMD ["nginx", "-g", "daemon off;"]
+DOCKERFILE_END
+

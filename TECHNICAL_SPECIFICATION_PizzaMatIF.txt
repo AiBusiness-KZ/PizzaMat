@@ -1,0 +1,4015 @@
+# ТЕХНИЧЕСКОЕ ЗАДАНИЕ
+# Проект: PizzaMatIF - MVP Telegram-бота для автоматизации приема заказов пиццы
+
+**Дата создания:** 25 октября 2024  
+**Версия:** 1.0  
+**Статус:** Утверждено к разработке
+
+---
+
+## СОДЕРЖАНИЕ
+
+1. [Постановка задачи](#1-постановка-задачи)
+2. [Результаты обсуждения и принятые решения](#2-результаты-обсуждения-и-принятые-решения)
+3. [Архитектура системы](#3-архитектура-системы)
+4. [Структура базы данных](#4-структура-базы-данных)
+5. [API спецификация](#5-api-спецификация)
+6. [Компоненты системы](#6-компоненты-системы)
+7. [Интеграции](#7-интеграции)
+8. [Безопасность](#8-безопасность)
+9. [DevOps и инфраструктура](#9-devops-и-инфраструктура)
+10. [План разработки](#10-план-разработки)
+11. [Чеклист задач](#11-чеклист-задач)
+
+---
+
+## 1. ПОСТАНОВКА ЗАДАЧИ
+
+### 1.1. Цель проекта
+
+Разработать MVP Telegram-бота "PizzaMatIF" для автоматизации процесса приема и обработки заказов пиццы с минимальными затратами, который позволит:
+- Автоматизировать процесс приема заказов
+- Отработать бизнес-процесс обработки заказов
+- Подготовить базу для внедрения более сложных решений (онлайн-оплата, интеграция с автоматом)
+
+### 1.2. Основной сценарий работы
+
+**Для клиента:**
+1. Регистрация в боте (номер телефона, ФИО, город)
+2. Выбор точки получения заказа
+3. Просмотр меню в Telegram WebApp
+4. Формирование корзины
+5. Подтверждение заказа → получение уникального кода (6-значный + QR-код)
+6. Оплата заказа и загрузка фото чека
+7. Автоматическая проверка чека через AI
+8. Получение уведомления о готовности
+9. Получение заказа по коду
+
+**Для менеджера:**
+1. Получение уведомления о новом заказе в закрытый канал
+2. Просмотр всех деталей заказа, чека и результата автопроверки
+3. Подтверждение/отклонение заказа через кнопки
+4. Выдача заказа клиенту по коду
+
+**Для администратора:**
+1. Управление меню через загрузку Excel файла
+2. Настройка точек выдачи и привязка товаров
+3. Просмотр статистики и заказов
+4. Управление через Telegram админ-бот
+
+### 1.3. Ключевые требования
+
+- **Быстрота:** Запуск MVP в кратчайшие сроки
+- **Простота:** Минимальная сложность для пользователя
+- **Надежность:** Защита от дубликатов чеков и мошенничества
+- **Масштабируемость:** До 1000 заказов/день, 100 одновременных пользователей
+- **Гибкость:** Разное меню для разных точек выдачи
+
+
+### 1.4. ГЕОГРАФИЯ ПРОЕКТА
+Проект будет работать на территории Украины
+Проект мултиязычный: украинский (основной), английский и русский языки  
+
+---
+
+## 2. РЕЗУЛЬТАТЫ ОБСУЖДЕНИЯ И ПРИНЯТЫЕ РЕШЕНИЯ
+
+### 2.1. Выбор архитектуры
+
+**Решение:** Вариант B - "Быстрый старт" (Low-code подход)
+
+**Стек:**
+```
+Telegram Bot (aiogram 3.x)
+    ↓
+FastAPI Backend (REST API)
+    ↓
+n8n (оркестрация AI-проверок и уведомлений)
+    ↓
+PostgreSQL + Redis
+    ↓
+Telegram WebApp (HTML/JS) или React
+```
+
+**Обоснование:**
+- Быстрее выход на рынок
+- n8n для визуального управления workflow
+- Готово к масштабированию
+- Легко вносить изменения в бизнес-логику
+
+### 2.2. Ключевые технические решения
+
+#### 2.2.1. Валидация чеков
+- **Метод:** GPT-4o Vision API
+- **Проверяемые параметры:**
+  - Сумма платежа
+  - Дата и время
+  - Банк/платежная система
+  - Отправитель и получатель
+  - Визуальная валидность чека
+- **Защита от повторного использования:** SHA-256 хеширование изображений
+
+#### 2.2.2. Генерация кодов заказа
+- **Формат:** 6-значный числовой код (100000-999999)
+- **Метод:** Псевдослучайная генерация с проверкой уникальности в БД
+- **Дополнительно:** QR-код с тем же номером для каждого заказа
+
+#### 2.2.3. Управление меню по точкам
+- **Решение:** Связующая таблица `location_products`
+- **Возможности:**
+  - Разные цены для разных точек
+  - Управление наличием товара
+  - Гибкая привязка товаров к локациям
+- **Загрузка:** Через Excel файл с двумя листами (товары + привязки)
+
+#### 2.2.4. Выбор точки выдачи
+- **Момент выбора:** При каждом заказе (не при регистрации)
+- **Поведение:** Меню подгружается для выбранной точки
+- **При смене точки:** Предупреждение об изменении цен/доступности
+
+#### 2.2.5. Уведомления
+- **Канал:** Только Telegram
+- **Для клиента:** Уведомления через бот
+- **Для менеджера:** Закрытый канал с интерактивными кнопками
+
+#### 2.2.6. Админ-панель
+- **Формат:** Telegram админ-бот
+- **Функции:**
+  - Загрузка меню из Excel
+  - Управление точками
+  - Просмотр статистики
+  - Управление привязками товаров
+
+### 2.3. Инфраструктура
+
+- **Хостинг:** VPS
+- **Контейнеризация:** Docker + Docker Compose
+- **База данных:** PostgreSQL 15+
+- **Кеш:** Redis (опционально для меню)
+- **Reverse Proxy:** Nginx
+- **SSL:** Let's Encrypt
+
+---
+
+## 3. АРХИТЕКТУРА СИСТЕМЫ
+
+### 3.1. Общая схема
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                        КЛИЕНТСКАЯ ЧАСТЬ                      │
+│                                                              │
+│  ┌──────────────────┐              ┌────────────────────┐   │
+│  │  Telegram Bot    │◄────────────►│   WebApp           │   │
+│  │  (aiogram 3.x)   │              │   (HTML/JS)        │   │
+│  └────────┬─────────┘              └──────────┬─────────┘   │
+│           │                                    │             │
+└───────────┼────────────────────────────────────┼─────────────┘
+            │                                    │
+            │         ┌──────────────────────────┘
+            │         │
+            ▼         ▼
+┌─────────────────────────────────────────────────────────────┐
+│                     BACKEND (FastAPI)                        │
+│                                                              │
+│  ┌────────────────┐  ┌────────────────┐  ┌──────────────┐  │
+│  │  User API      │  │  Menu API      │  │  Order API   │  │
+│  │  /auth/*       │  │  /menu/*       │  │  /orders/*   │  │
+│  └────────────────┘  └────────────────┘  └──────────────┘  │
+│                                                              │
+│  ┌────────────────┐  ┌────────────────┐  ┌──────────────┐  │
+│  │  Admin API     │  │  Webhooks      │  │  Services    │  │
+│  │  /admin/*      │  │  /webhooks/*   │  │  (business)  │  │
+│  └────────────────┘  └────────────────┘  └──────────────┘  │
+│                                                              │
+└──────────┬──────────────────────────────────┬───────────────┘
+           │                                  │
+           ▼                                  ▼
+┌──────────────────────┐         ┌───────────────────────────┐
+│   PostgreSQL         │         │         n8n               │
+│   ┌──────────────┐   │         │  ┌──────────────────────┐ │
+│   │   users      │   │         │  │  Receipt Validation  │ │
+│   │   products   │   │◄────────┤  │  (GPT-4o Vision)     │ │
+│   │   orders     │   │         │  └──────────────────────┘ │
+│   │   ...        │   │         │  ┌──────────────────────┐ │
+│   └──────────────┘   │         │  │  Manager Notify      │ │
+│                      │         │  │  (Telegram Channel)  │ │
+│  ┌──────────────┐   │         │  └──────────────────────┘ │
+│  │   Redis      │   │         │  ┌──────────────────────┐ │
+│  │   (cache)    │   │         │  │  Order Status Update │ │
+│  └──────────────┘   │         │  └──────────────────────┘ │
+└──────────────────────┘         └───────────────────────────┘
+                                              │
+                                              ▼
+                                 ┌─────────────────────────┐
+                                 │   Manager Channel       │
+                                 │   (Private Telegram)    │
+                                 │                         │
+                                 │   ┌─────────────────┐   │
+                                 │   │ Order Card      │   │
+                                 │   │ [✅ Confirm]    │   │
+                                 │   │ [❌ Cancel]     │   │
+                                 │   └─────────────────┘   │
+                                 └─────────────────────────┘
+```
+
+### 3.2. Потоки данных
+
+#### 3.2.1. Создание заказа
+```
+User → WebApp → Backend API → PostgreSQL
+                    ↓
+                Generate Code (6-digit + QR)
+                    ↓
+                Return to User
+```
+
+#### 3.2.2. Валидация чека
+```
+User uploads receipt → Bot → Backend API
+                              ↓
+                        Save to storage
+                              ↓
+                        Calculate hash
+                              ↓
+                        Check duplicates
+                              ↓
+                        Trigger n8n webhook
+                              ↓
+                        n8n → OpenAI GPT-4o
+                              ↓
+                        Parse response
+                              ↓
+                        Save validation result
+                              ↓
+                        Send to Manager Channel
+                              ↓
+                        Notify User
+```
+
+#### 3.2.3. Подтверждение менеджером
+```
+Manager clicks button → Telegram callback
+                              ↓
+                        n8n catches callback
+                              ↓
+                        Update order status (Backend API)
+                              ↓
+                        Notify User via Bot
+                              ↓
+                        Update message in channel
+```
+
+---
+
+## 4. СТРУКТУРА БАЗЫ ДАННЫХ
+
+### 4.1. ERD Schema
+
+```
+┌─────────────────┐         ┌─────────────────┐
+│     cities      │◄────────│   locations     │
+├─────────────────┤         ├─────────────────┤
+│ id (PK)         │         │ id (PK)         │
+│ name            │         │ city_id (FK)    │
+│ is_active       │         │ name            │
+└─────────────────┘         │ address         │
+                            │ is_active       │
+                            └────────┬────────┘
+                                     │
+        ┌────────────────────────────┤
+        │                            │
+        │                    ┌───────▼────────┐
+        │                    │     users      │
+        │                    ├────────────────┤
+        │                    │ id (PK)        │
+        │                    │ telegram_id    │
+        │                    │ phone          │
+        │                    │ full_name      │
+        │                    │ city_id (FK)   │
+        │                    │ created_at     │
+        │                    │ is_active      │
+        │                    └───────┬────────┘
+        │                            │
+        │                            │
+┌───────▼────────┐         ┌─────────▼──────────┐
+│    orders      │         │   order_items      │
+├────────────────┤         ├────────────────────┤
+│ id (PK)        │◄────────│ id (PK)            │
+│ user_id (FK)   │         │ order_id (FK)      │
+│ location_id(FK)│         │ product_id (FK)    │
+│ order_code     │         │ quantity           │
+│ qr_code_url    │         │ unit_price         │
+│ total_amount   │         │ selected_options   │
+│ status         │         │ total_price        │
+│ receipt_img_url│         └────────────────────┘
+│ receipt_amount │
+│ receipt_hash   │
+│ validation_res │         ┌─────────────────┐
+│ confirmed_at   │         │  receipts_hash  │
+│ created_at     │         ├─────────────────┤
+│ updated_at     │◄────────│ id (PK)         │
+└────────────────┘         │ image_hash      │
+                           │ order_id (FK)   │
+                           │ created_at      │
+┌──────────────────┐       └─────────────────┘
+│   categories     │
+├──────────────────┤       
+│ id (PK)          │
+│ name             │       ┌──────────────────────┐
+│ sort_order       │       │  product_options     │
+│ is_active        │       ├──────────────────────┤
+└────────┬─────────┘       │ id (PK)              │
+         │                 │ product_id (FK)      │
+         │                 │ option_name          │
+┌────────▼─────────┐       │ option_value         │
+│    products      │◄──────│ price_modifier       │
+├──────────────────┤       │ is_active            │
+│ id (PK)          │       └──────────────────────┘
+│ category_id (FK) │
+│ name             │       ┌──────────────────────┐
+│ description      │       │ location_products    │
+│ image_url        │       ├──────────────────────┤
+│ base_price       │◄──────│ id (PK)              │
+│ is_active        │       │ location_id (FK)     │
+│ sort_order       │       │ product_id (FK)      │
+└──────────────────┘       │ price_override       │
+                           │ is_available         │
+                           │ stock_quantity       │
+                           │ sort_order           │
+                           │ created_at           │
+                           │ updated_at           │
+                           └──────────────────────┘
+```
+
+### 4.2. SQL Schema (PostgreSQL)
+
+```sql
+-- =====================================================
+-- 1. СПРАВОЧНИКИ
+-- =====================================================
+
+-- Города
+CREATE TABLE cities (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(100) NOT NULL UNIQUE,
+    is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX idx_cities_active ON cities(is_active);
+
+-- Точки выдачи
+CREATE TABLE locations (
+    id SERIAL PRIMARY KEY,
+    city_id INTEGER NOT NULL REFERENCES cities(id) ON DELETE CASCADE,
+    name VARCHAR(255) NOT NULL,
+    address TEXT NOT NULL,
+    working_hours VARCHAR(100),
+    is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX idx_locations_city ON locations(city_id);
+CREATE INDEX idx_locations_active ON locations(is_active);
+
+-- =====================================================
+-- 2. ПОЛЬЗОВАТЕЛИ
+-- =====================================================
+
+CREATE TABLE users (
+    id SERIAL PRIMARY KEY,
+    telegram_id BIGINT NOT NULL UNIQUE,
+    phone VARCHAR(20) NOT NULL,
+    full_name VARCHAR(255) NOT NULL,
+    city_id INTEGER REFERENCES cities(id),
+    is_active BOOLEAN DEFAULT true,
+    is_admin BOOLEAN DEFAULT false,
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE UNIQUE INDEX idx_users_telegram ON users(telegram_id);
+CREATE INDEX idx_users_phone ON users(phone);
+CREATE INDEX idx_users_active ON users(is_active);
+
+-- =====================================================
+-- 3. МЕНЮ И ТОВАРЫ
+-- =====================================================
+
+-- Категории товаров
+CREATE TABLE categories (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    description TEXT,
+    sort_order INTEGER DEFAULT 0,
+    is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX idx_categories_sort ON categories(sort_order);
+CREATE INDEX idx_categories_active ON categories(is_active);
+
+-- Товары (базовый каталог)
+CREATE TABLE products (
+    id SERIAL PRIMARY KEY,
+    category_id INTEGER NOT NULL REFERENCES categories(id) ON DELETE CASCADE,
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+    image_url VARCHAR(500),
+    base_price DECIMAL(10,2) NOT NULL CHECK (base_price >= 0),
+    is_active BOOLEAN DEFAULT true,
+    sort_order INTEGER DEFAULT 0,
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX idx_products_category ON products(category_id);
+CREATE INDEX idx_products_active ON products(is_active);
+CREATE INDEX idx_products_sort ON products(sort_order);
+
+-- Опции товаров (размеры, добавки)
+CREATE TABLE product_options (
+    id SERIAL PRIMARY KEY,
+    product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+    option_name VARCHAR(100) NOT NULL, -- 'size', 'extra', etc.
+    option_value VARCHAR(100) NOT NULL, -- '25см', 'Сыр', etc.
+    price_modifier DECIMAL(10,2) DEFAULT 0, -- +500, +200, etc.
+    is_active BOOLEAN DEFAULT true,
+    sort_order INTEGER DEFAULT 0,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX idx_options_product ON product_options(product_id);
+CREATE INDEX idx_options_active ON product_options(is_active);
+
+-- Привязка товаров к точкам выдачи (КЛЮЧЕВАЯ ТАБЛИЦА)
+CREATE TABLE location_products (
+    id SERIAL PRIMARY KEY,
+    location_id INTEGER NOT NULL REFERENCES locations(id) ON DELETE CASCADE,
+    product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+    price_override DECIMAL(10,2), -- NULL = использовать base_price
+    is_available BOOLEAN DEFAULT true,
+    stock_quantity INTEGER, -- опционально для будущего
+    sort_order INTEGER DEFAULT 0,
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW(),
+    
+    UNIQUE(location_id, product_id) -- один товар = одна запись на точку
+);
+
+CREATE INDEX idx_lp_location ON location_products(location_id);
+CREATE INDEX idx_lp_product ON location_products(product_id);
+CREATE INDEX idx_lp_available ON location_products(is_available);
+
+-- =====================================================
+-- 4. ЗАКАЗЫ
+-- =====================================================
+
+-- Статусы заказов
+CREATE TYPE order_status AS ENUM (
+    'draft',       -- черновик (в корзине)
+    'pending',     -- создан, ожидает оплаты
+    'paid',        -- чек загружен и валидирован
+    'confirmed',   -- подтвержден менеджером
+    'cancelled',   -- отменен
+    'completed'    -- выдан клиенту
+);
+
+-- Заказы
+CREATE TABLE orders (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id),
+    location_id INTEGER NOT NULL REFERENCES locations(id),
+    
+    -- Идентификация заказа
+    order_code VARCHAR(6) NOT NULL UNIQUE, -- 6-значный код
+    qr_code_url VARCHAR(500), -- URL QR-кода
+    
+    -- Финансы
+    total_amount DECIMAL(10,2) NOT NULL CHECK (total_amount >= 0),
+    
+    -- Статус
+    status order_status DEFAULT 'pending',
+    
+    -- Чек
+    receipt_image_url VARCHAR(500),
+    receipt_amount DECIMAL(10,2), -- сумма, введенная пользователем
+    receipt_hash VARCHAR(64), -- SHA-256 hash изображения
+    receipt_validated_at TIMESTAMP,
+    receipt_validation_result JSONB, -- результат от GPT-4o
+    
+    -- Подтверждение менеджером
+    confirmed_by_user_id INTEGER REFERENCES users(id),
+    confirmed_at TIMESTAMP,
+    cancellation_reason TEXT,
+    
+    -- Временные метки
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW(),
+    completed_at TIMESTAMP
+);
+
+CREATE UNIQUE INDEX idx_orders_code ON orders(order_code);
+CREATE INDEX idx_orders_user ON orders(user_id);
+CREATE INDEX idx_orders_location ON orders(location_id);
+CREATE INDEX idx_orders_status ON orders(status);
+CREATE INDEX idx_orders_created ON orders(created_at DESC);
+CREATE INDEX idx_orders_receipt_hash ON orders(receipt_hash);
+
+-- Позиции заказа
+CREATE TABLE order_items (
+    id SERIAL PRIMARY KEY,
+    order_id INTEGER NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+    product_id INTEGER NOT NULL REFERENCES products(id),
+    
+    quantity INTEGER NOT NULL CHECK (quantity > 0),
+    unit_price DECIMAL(10,2) NOT NULL CHECK (unit_price >= 0),
+    
+    selected_options JSONB, -- {"size": "30см", "extras": ["Сыр", "Грибы"]}
+    options_price DECIMAL(10,2) DEFAULT 0,
+    
+    total_price DECIMAL(10,2) NOT NULL CHECK (total_price >= 0),
+    
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX idx_order_items_order ON order_items(order_id);
+CREATE INDEX idx_order_items_product ON order_items(product_id);
+
+-- Защита от повторного использования чеков
+CREATE TABLE receipts_hash (
+    id SERIAL PRIMARY KEY,
+    image_hash VARCHAR(64) NOT NULL UNIQUE,
+    order_id INTEGER NOT NULL REFERENCES orders(id),
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE UNIQUE INDEX idx_receipts_hash ON receipts_hash(image_hash);
+
+-- =====================================================
+-- 5. ТРИГГЕРЫ
+-- =====================================================
+
+-- Автообновление updated_at
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER update_users_updated_at BEFORE UPDATE ON users
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_products_updated_at BEFORE UPDATE ON products
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_orders_updated_at BEFORE UPDATE ON orders
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_locations_updated_at BEFORE UPDATE ON locations
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_location_products_updated_at BEFORE UPDATE ON location_products
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- =====================================================
+-- 6. НАЧАЛЬНЫЕ ДАННЫЕ
+-- =====================================================
+
+-- Тестовый город
+INSERT INTO cities (name) VALUES ('Алматы'), ('Астана'), ('Шымкент');
+
+-- Тестовые точки
+INSERT INTO locations (city_id, name, address, working_hours) VALUES
+(1, 'Абай 150', 'пр. Абая 150', '09:00-21:00'),
+(1, 'Сатпаева 90', 'ул. Сатпаева 90/2', '10:00-22:00'),
+(2, 'Кенесары 40', 'ул. Кенесары 40', '09:00-21:00');
+
+-- Тестовые категории
+INSERT INTO categories (name, sort_order) VALUES
+('Пицца', 1),
+('Напитки', 2),
+('Десерты', 3),
+('Закуски', 4);
+
+-- Комментарии для документации
+COMMENT ON TABLE location_products IS 'Связующая таблица: какие товары доступны на каких точках';
+COMMENT ON COLUMN location_products.price_override IS 'NULL = использовать base_price из products';
+COMMENT ON COLUMN orders.receipt_validation_result IS 'JSON с результатом проверки GPT-4o';
+COMMENT ON TABLE receipts_hash IS 'Защита от повторного использования одного чека';
+```
+
+### 4.3. Ключевые индексы
+
+```sql
+-- Производительность для частых запросов
+CREATE INDEX idx_orders_user_status ON orders(user_id, status);
+CREATE INDEX idx_orders_location_status ON orders(location_id, status);
+CREATE INDEX idx_orders_created_date ON orders(DATE(created_at));
+
+-- Для поиска меню
+CREATE INDEX idx_lp_location_available ON location_products(location_id, is_available);
+
+-- Для аналитики
+CREATE INDEX idx_orders_completed_date ON orders(completed_at) WHERE completed_at IS NOT NULL;
+```
+
+---
+
+## 5. API СПЕЦИФИКАЦИЯ
+
+### 5.1. Аутентификация
+
+#### POST `/api/v1/auth/register`
+Регистрация нового пользователя
+
+**Request:**
+```json
+{
+  "telegram_id": 123456789,
+  "phone": "+77771234567",
+  "full_name": "Иван Иванов",
+  "city_id": 1
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "user_id": 1,
+    "access_token": "eyJhbGciOiJIUzI1NiIs...",
+    "user": {
+      "id": 1,
+      "telegram_id": 123456789,
+      "phone": "+77771234567",
+      "full_name": "Иван Иванов",
+      "city": {
+        "id": 1,
+        "name": "Алматы"
+      }
+    }
+  }
+}
+```
+
+#### POST `/api/v1/auth/login`
+Авторизация существующего пользователя
+
+**Request:**
+```json
+{
+  "telegram_id": 123456789
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "access_token": "eyJhbGciOiJIUzI1NiIs...",
+    "user": {
+      "id": 1,
+      "telegram_id": 123456789,
+      "phone": "+77771234567",
+      "full_name": "Иван Иванов"
+    }
+  }
+}
+```
+
+#### POST `/api/v1/auth/validate-webapp`
+Валидация initData из Telegram WebApp
+
+**Request:**
+```json
+{
+  "init_data": "query_id=AAHdF6...",
+  "init_data_hash": "c501b..."
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "valid": true,
+    "user_id": 123456789
+  }
+}
+```
+
+### 5.2. Меню
+
+#### GET `/api/v1/menu/cities`
+Получить список городов
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": 1,
+      "name": "Алматы"
+    },
+    {
+      "id": 2,
+      "name": "Астана"
+    }
+  ]
+}
+```
+
+#### GET `/api/v1/menu/locations?city_id={id}`
+Получить точки выдачи в городе
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": 1,
+      "city_id": 1,
+      "name": "Абай 150",
+      "address": "пр. Абая 150",
+      "working_hours": "09:00-21:00"
+    }
+  ]
+}
+```
+
+#### GET `/api/v1/menu/categories?location_id={id}`
+Получить категории для точки
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": 1,
+      "name": "Пицца",
+      "sort_order": 1,
+      "products_count": 12
+    }
+  ]
+}
+```
+
+#### GET `/api/v1/menu/products?location_id={id}&category_id={id}`
+Получить товары категории для точки
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": 1,
+      "name": "Пепперони",
+      "description": "Острая пицца с пепперони",
+      "image_url": "https://example.com/pizza1.jpg",
+      "price": 2500.00,
+      "is_available": true,
+      "options": [
+        {
+          "id": 1,
+          "option_name": "size",
+          "option_value": "25см",
+          "price_modifier": 0
+        },
+        {
+          "id": 2,
+          "option_name": "size",
+          "option_value": "30см",
+          "price_modifier": 500
+        },
+        {
+          "id": 3,
+          "option_name": "extra",
+          "option_value": "Сыр",
+          "price_modifier": 200
+        }
+      ]
+    }
+  ]
+}
+```
+
+#### GET `/api/v1/menu/products/{id}?location_id={id}`
+Получить детали товара
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "id": 1,
+    "name": "Пепперони",
+    "description": "Острая пицца с колбасой пепперони, моцареллой и томатным соусом",
+    "image_url": "https://example.com/pizza1.jpg",
+    "category": {
+      "id": 1,
+      "name": "Пицца"
+    },
+    "price": 2500.00,
+    "is_available": true,
+    "stock_quantity": 50,
+    "options": [...],
+    "nutritional_info": {
+      "calories": 250,
+      "protein": 12,
+      "fat": 10,
+      "carbs": 30
+    }
+  }
+}
+```
+
+### 5.3. Корзина и заказы
+
+#### POST `/api/v1/orders/calculate`
+Расчет стоимости заказа (перед созданием)
+
+**Request:**
+```json
+{
+  "location_id": 1,
+  "items": [
+    {
+      "product_id": 1,
+      "quantity": 2,
+      "selected_options": [
+        {"id": 2, "option_name": "size", "option_value": "30см"},
+        {"id": 3, "option_name": "extra", "option_value": "Сыр"}
+      ]
+    },
+    {
+      "product_id": 5,
+      "quantity": 1,
+      "selected_options": []
+    }
+  ]
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "items": [
+      {
+        "product_id": 1,
+        "name": "Пепперони",
+        "quantity": 2,
+        "unit_price": 2500,
+        "options_price": 700,
+        "total_price": 6400
+      },
+      {
+        "product_id": 5,
+        "name": "Кола 0.5л",
+        "quantity": 1,
+        "unit_price": 500,
+        "options_price": 0,
+        "total_price": 500
+      }
+    ],
+    "subtotal": 6900,
+    "discount": 0,
+    "total": 6900
+  }
+}
+```
+
+#### POST `/api/v1/orders/create`
+Создать заказ
+
+**Request:**
+```json
+{
+  "location_id": 1,
+  "items": [
+    {
+      "product_id": 1,
+      "quantity": 2,
+      "selected_options": [
+        {"id": 2, "option_name": "size", "option_value": "30см"}
+      ]
+    }
+  ]
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "order_id": 123,
+    "order_code": "456789",
+    "qr_code_url": "https://example.com/qr/456789.png",
+    "total_amount": 6000,
+    "status": "pending",
+    "created_at": "2024-10-25T14:30:00Z",
+    "payment_instructions": "Оплатите заказ на сумму 6000₸ и загрузите фото чека"
+  }
+}
+```
+
+#### POST `/api/v1/orders/{id}/upload-receipt`
+Загрузить чек
+
+**Request:** `multipart/form-data`
+```
+image: [binary]
+amount: 6000
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "receipt_uploaded": true,
+    "validation_status": "processing",
+    "message": "Чек загружен. Проводится проверка..."
+  }
+}
+```
+
+#### GET `/api/v1/orders/{id}/status`
+Получить статус заказа
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "order_id": 123,
+    "order_code": "456789",
+    "status": "confirmed",
+    "created_at": "2024-10-25T14:30:00Z",
+    "confirmed_at": "2024-10-25T14:35:00Z",
+    "receipt_validation": {
+      "is_valid": true,
+      "amount": 6000,
+      "payment_system": "Kaspi",
+      "confidence": 0.95
+    },
+    "location": {
+      "name": "Алматы, Абай 150",
+      "address": "пр. Абая 150"
+    }
+  }
+}
+```
+
+#### GET `/api/v1/orders/my-orders`
+История заказов пользователя
+
+**Query params:**
+- `limit` (default: 10)
+- `offset` (default: 0)
+- `status` (optional filter)
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "total": 25,
+    "items": [
+      {
+        "id": 123,
+        "order_code": "456789",
+        "total_amount": 6000,
+        "status": "completed",
+        "created_at": "2024-10-25T14:30:00Z",
+        "location": "Алматы, Абай 150",
+        "items_count": 3
+      }
+    ]
+  }
+}
+```
+
+#### POST `/api/v1/orders/{id}/repeat`
+Повторить заказ
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "cart": [
+      {"product_id": 1, "quantity": 2, "selected_options": [...]}
+    ]
+  }
+}
+```
+
+### 5.4. Админ API
+
+#### POST `/api/v1/admin/menu/upload-excel`
+Загрузить меню из Excel
+
+**Request:** `multipart/form-data`
+```
+file: [excel file]
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "imported": {
+      "categories": 5,
+      "products": 23,
+      "options": 45,
+      "location_bindings": 115
+    },
+    "warnings": [
+      {
+        "row": 12,
+        "message": "Товар 'Маргарита' - отсутствует изображение"
+      }
+    ],
+    "errors": []
+  }
+}
+```
+
+#### GET `/api/v1/admin/orders`
+Список заказов для админа
+
+**Query params:**
+- `status` (pending, paid, confirmed, cancelled, completed)
+- `location_id`
+- `date_from`
+- `date_to`
+- `limit`
+- `offset`
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "total": 150,
+    "items": [
+      {
+        "id": 123,
+        "order_code": "456789",
+        "user": {
+          "full_name": "Иван Иванов",
+          "phone": "+77771234567"
+        },
+        "location": "Алматы, Абай 150",
+        "total_amount": 6000,
+        "status": "paid",
+        "created_at": "2024-10-25T14:30:00Z"
+      }
+    ]
+  }
+}
+```
+
+#### POST `/api/v1/admin/orders/{id}/confirm`
+Подтвердить заказ (альтернатива кнопке в канале)
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "order_id": 123,
+    "status": "confirmed",
+    "confirmed_at": "2024-10-25T14:35:00Z"
+  }
+}
+```
+
+#### POST `/api/v1/admin/orders/{id}/cancel`
+Отменить заказ
+
+**Request:**
+```json
+{
+  "reason": "Недостаточно ингредиентов"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "order_id": 123,
+    "status": "cancelled"
+  }
+}
+```
+
+#### GET `/api/v1/admin/stats`
+Статистика
+
+**Query params:**
+- `period` (today, week, month, custom)
+- `date_from`
+- `date_to`
+- `location_id`
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "period": "today",
+    "orders": {
+      "total": 45,
+      "pending": 3,
+      "confirmed": 40,
+      "cancelled": 2
+    },
+    "revenue": {
+      "total": 450000,
+      "by_location": {
+        "1": 300000,
+        "2": 150000
+      }
+    },
+    "new_users": 12,
+    "popular_products": [
+      {
+        "product_id": 1,
+        "name": "Пепперони",
+        "orders_count": 25
+      }
+    ]
+  }
+}
+```
+
+### 5.5. Webhooks
+
+#### POST `/api/v1/webhooks/telegram`
+Webhook для Telegram бота
+
+**Headers:**
+- `X-Telegram-Bot-Api-Secret-Token`: `your_secret_token`
+
+**Request:** Telegram Update object
+
+#### POST `/api/v1/webhooks/n8n`
+Callback от n8n
+
+**Headers:**
+- `X-N8N-Secret`: `your_n8n_secret`
+
+**Request:**
+```json
+{
+  "event": "receipt_validated",
+  "order_id": 123,
+  "validation_result": {
+    "is_valid": true,
+    "amount": 6000,
+    "confidence": 0.95
+  }
+}
+```
+
+### 5.6. Общие коды ответов
+
+```
+200 OK - Успешный запрос
+201 Created - Ресурс создан
+400 Bad Request - Ошибка валидации
+401 Unauthorized - Не авторизован
+403 Forbidden - Нет прав доступа
+404 Not Found - Ресурс не найден
+409 Conflict - Конфликт (например, дубликат)
+422 Unprocessable Entity - Ошибка бизнес-логики
+429 Too Many Requests - Превышен лимит запросов
+500 Internal Server Error - Внутренняя ошибка сервера
+```
+
+### 5.7. Формат ошибок
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Проверьте введенные данные",
+    "details": {
+      "phone": ["Неверный формат номера телефона"]
+    }
+  }
+}
+```
+
+---
+
+## 6. КОМПОНЕНТЫ СИСТЕМЫ
+
+### 6.1. Backend (FastAPI)
+
+#### 6.1.1. Структура проекта
+
+```
+backend/
+├── Dockerfile
+├── requirements.txt
+├── alembic.ini
+├── .env.example
+│
+├── alembic/                      # Миграции БД
+│   ├── versions/
+│   │   ├── 001_initial.py
+│   │   ├── 002_add_orders.py
+│   │   └── ...
+│   └── env.py
+│
+├── app/
+│   ├── __init__.py
+│   ├── main.py                   # FastAPI приложение
+│   ├── config.py                 # Настройки из env
+│   ├── database.py               # SQLAlchemy setup
+│   ├── dependencies.py           # DI для FastAPI
+│   │
+│   ├── models/                   # SQLAlchemy ORM модели
+│   │   ├── __init__.py
+│   │   ├── user.py
+│   │   ├── product.py
+│   │   ├── order.py
+│   │   ├── location.py
+│   │   └── receipt.py
+│   │
+│   ├── schemas/                  # Pydantic схемы
+│   │   ├── __init__.py
+│   │   ├── user.py
+│   │   ├── product.py
+│   │   ├── order.py
+│   │   ├── auth.py
+│   │   └── responses.py
+│   │
+│   ├── api/
+│   │   ├── __init__.py
+│   │   ├── deps.py              # Общие зависимости
+│   │   └── v1/
+│   │       ├── __init__.py
+│   │       ├── auth.py          # Аутентификация
+│   │       ├── menu.py          # Меню и товары
+│   │       ├── orders.py        # Заказы
+│   │       ├── admin.py         # Админ функции
+│   │       └── webhooks.py      # Вебхуки
+│   │
+│   ├── services/                 # Бизнес-логика
+│   │   ├── __init__.py
+│   │   ├── auth_service.py
+│   │   ├── menu_service.py
+│   │   ├── order_service.py
+│   │   ├── code_generator.py    # Генерация кодов
+│   │   ├── qr_service.py        # QR-коды
+│   │   ├── excel_parser.py      # Парсинг Excel
+│   │   └── image_service.py     # Работа с изображениями
+│   │
+│   ├── core/                     # Общие утилиты
+│   │   ├── __init__.py
+│   │   ├── security.py          # JWT, хеширование
+│   │   ├── exceptions.py        # Кастомные исключения
+│   │   └── logger.py            # Логирование
+│   │
+│   └── utils/
+│       ├── __init__.py
+│       ├── telegram.py          # Telegram API utils
+│       ├── image_hash.py        # SHA-256 для чеков
+│       ├── validators.py        # Валидаторы
+│       └── n8n_client.py        # Клиент для n8n
+│
+└── tests/                        # Тесты
+    ├── __init__.py
+    ├── conftest.py
+    ├── test_auth.py
+    ├── test_orders.py
+    └── test_menu.py
+```
+
+#### 6.1.2. Ключевые зависимости (requirements.txt)
+
+```txt
+# Core
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+python-multipart==0.0.6
+
+# Database
+sqlalchemy[asyncio]==2.0.23
+asyncpg==0.29.0
+alembic==1.12.1
+psycopg2-binary==2.9.9
+
+# Redis (optional)
+redis==5.0.1
+aioredis==2.0.1
+
+# Auth & Security
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+python-dotenv==1.0.0
+
+# Images
+Pillow==10.1.0
+qrcode[pil]==7.4.2
+
+# Excel
+pandas==2.1.3
+openpyxl==3.1.2
+
+# HTTP Client
+httpx==0.25.1
+
+# Validation
+pydantic==2.5.0
+pydantic-settings==2.1.0
+email-validator==2.1.0
+
+# Utils
+python-slugify==8.0.1
+pytz==2023.3
+
+# Logging & Monitoring
+python-json-logger==2.0.7
+sentry-sdk==1.38.0
+
+# Dev
+pytest==7.4.3
+pytest-asyncio==0.21.1
+black==23.11.0
+flake8==6.1.0
+mypy==1.7.1
+```
+
+#### 6.1.3. Пример ключевого кода
+
+**app/main.py:**
+```python
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from app.api.v1 import auth, menu, orders, admin, webhooks
+from app.core.logger import setup_logger
+from app.config import settings
+
+app = FastAPI(
+    title="PizzaMatIF API",
+    version="1.0.0",
+    docs_url="/docs" if settings.DEBUG else None
+)
+
+# CORS для WebApp
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.ALLOWED_ORIGINS,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Подключение роутеров
+app.include_router(auth.router, prefix="/api/v1/auth", tags=["auth"])
+app.include_router(menu.router, prefix="/api/v1/menu", tags=["menu"])
+app.include_router(orders.router, prefix="/api/v1/orders", tags=["orders"])
+app.include_router(admin.router, prefix="/api/v1/admin", tags=["admin"])
+app.include_router(webhooks.router, prefix="/api/v1/webhooks", tags=["webhooks"])
+
+@app.on_event("startup")
+async def startup():
+    logger = setup_logger()
+    logger.info("Starting PizzaMatIF API")
+
+@app.get("/health")
+async def health_check():
+    return {"status": "ok"}
+```
+
+**app/services/code_generator.py:**
+```python
+import secrets
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
+from app.models.order import Order
+
+async def generate_unique_order_code(db: AsyncSession, max_attempts: int = 10) -> str:
+    """
+    Генерирует уникальный 6-значный код заказа
+    """
+    for _ in range(max_attempts):
+        # Генерация криптографически безопасного кода
+        code = str(secrets.randbelow(900000) + 100000)  # 100000-999999
+        
+        # Проверка уникальности
+        result = await db.execute(
+            select(Order).where(Order.order_code == code)
+        )
+        if result.scalar_one_or_none() is None:
+            return code
+    
+    raise ValueError("Не удалось сгенерировать уникальный код")
+```
+
+**app/services/qr_service.py:**
+```python
+import qrcode
+from io import BytesIO
+from PIL import Image
+
+def generate_qr_code(data: str, size: int = 300) -> bytes:
+    """
+    Генерирует QR-код
+    
+    Args:
+        data: Данные для кодирования (код заказа)
+        size: Размер изображения в пикселях
+    
+    Returns:
+        bytes: PNG изображение
+    """
+    qr = qrcode.QRCode(
+        version=1,
+        error_correction=qrcode.constants.ERROR_CORRECT_L,
+        box_size=10,
+        border=4,
+    )
+    qr.add_data(data)
+    qr.make(fit=True)
+    
+    img = qr.make_image(fill_color="black", back_color="white")
+    
+    # Конвертация в bytes
+    buffer = BytesIO()
+    img.save(buffer, format='PNG')
+    return buffer.getvalue()
+
+async def save_qr_code(order_code: str, upload_dir: str) -> str:
+    """
+    Сохраняет QR-код и возвращает URL
+    """
+    qr_bytes = generate_qr_code(order_code)
+    
+    filename = f"qr_{order_code}.png"
+    filepath = f"{upload_dir}/{filename}"
+    
+    with open(filepath, 'wb') as f:
+        f.write(qr_bytes)
+    
+    return f"/uploads/qr/{filename}"
+```
+
+**app/utils/image_hash.py:**
+```python
+import hashlib
+from pathlib import Path
+
+def calculate_image_hash(image_path: str) -> str:
+    """
+    Вычисляет SHA-256 хеш изображения
+    """
+    sha256_hash = hashlib.sha256()
+    
+    with open(image_path, "rb") as f:
+        for byte_block in iter(lambda: f.read(4096), b""):
+            sha256_hash.update(byte_block)
+    
+    return sha256_hash.hexdigest()
+
+async def check_receipt_duplicate(db: AsyncSession, image_hash: str) -> bool:
+    """
+    Проверяет, использовался ли уже этот чек
+    """
+    result = await db.execute(
+        select(ReceiptsHash).where(ReceiptsHash.image_hash == image_hash)
+    )
+    return result.scalar_one_or_none() is not None
+```
+
+### 6.2. Telegram Bot (aiogram 3.x)
+
+#### 6.2.1. Структура проекта
+
+```
+bot/
+├── Dockerfile
+├── requirements.txt
+├── .env.example
+│
+├── main.py                       # Запуск бота
+├── config.py                     # Настройки
+│
+├── handlers/
+│   ├── __init__.py
+│   │
+│   ├── user/                     # Пользовательские хендлеры
+│   │   ├── __init__.py
+│   │   ├── start.py             # /start, регистрация
+│   │   ├── menu.py              # Открытие WebApp
+│   │   ├── receipt.py           # Загрузка чека
+│   │   ├── history.py           # История заказов
+│   │   └── help.py              # Помощь
+│   │
+│   └── admin/                    # Админские хендлеры
+│       ├── __init__.py
+│       ├── menu_management.py   # Загрузка Excel
+│       ├── locations.py         # Управление точками
+│       ├── orders.py            # Просмотр заказов
+│       └── stats.py             # Статистика
+│
+├── keyboards/
+│   ├── __init__.py
+│   ├── user.py                   # Клавиатуры для пользователя
+│   └── admin.py                  # Клавиатуры для админа
+│
+├── middlewares/
+│   ├── __init__.py
+│   ├── auth.py                   # Проверка регистрации
+│   ├── admin.py                  # Проверка прав админа
+│   └── throttling.py             # Rate limiting
+│
+├── services/
+│   ├── __init__.py
+│   ├── api_client.py             # HTTP клиент для backend
+│   └── telegram_sender.py        # Отправка в каналы
+│
+└── utils/
+    ├── __init__.py
+    ├── formatters.py             # Форматирование сообщений
+    └── validators.py             # Валидация данных
+```
+
+#### 6.2.2. Ключевые зависимости
+
+```txt
+aiogram==3.2.0
+aiohttp==3.9.1
+python-dotenv==1.0.0
+pydantic==2.5.0
+structlog==23.2.0
+```
+
+#### 6.2.3. Примеры кода
+
+**main.py:**
+```python
+import asyncio
+import logging
+from aiogram import Bot, Dispatcher
+from aiogram.enums import ParseMode
+from aiogram.client.default import DefaultBotProperties
+
+from config import settings
+from handlers import user, admin
+from middlewares.auth import AuthMiddleware
+from middlewares.admin import AdminMiddleware
+
+async def main():
+    # Инициализация бота
+    bot = Bot(
+        token=settings.BOT_TOKEN,
+        default=DefaultBotProperties(parse_mode=ParseMode.HTML)
+    )
+    
+    dp = Dispatcher()
+    
+    # Регистрация middleware
+    dp.message.middleware(AuthMiddleware())
+    
+    # Регистрация роутеров
+    dp.include_router(user.router)
+    dp.include_router(admin.router)
+    
+    # Запуск polling
+    await dp.start_polling(bot)
+
+if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO)
+    asyncio.run(main())
+```
+
+**handlers/user/start.py:**
+```python
+from aiogram import Router, F
+from aiogram.filters import CommandStart
+from aiogram.types import Message, KeyboardButton, ReplyKeyboardMarkup
+from aiogram.fsm.context import FSMContext
+from aiogram.fsm.state import State, StatesGroup
+
+from services.api_client import APIClient
+
+router = Router()
+api_client = APIClient()
+
+class Registration(StatesGroup):
+    phone = State()
+    full_name = State()
+    city = State()
+
+@router.message(CommandStart())
+async def cmd_start(message: Message, state: FSMContext):
+    # Проверка, зарегистрирован ли пользователь
+    user = await api_client.get_user(message.from_user.id)
+    
+    if user:
+        # Уже зарегистрирован - показываем главное меню
+        await show_main_menu(message)
+    else:
+        # Запускаем регистрацию
+        await message.answer(
+            "👋 Добро пожаловать в PizzaMatIF!\n\n"
+            "Для начала работы нужно зарегистрироваться.\n"
+            "Поделитесь своим номером телефона:",
+            reply_markup=ReplyKeyboardMarkup(
+                keyboard=[[KeyboardButton(text="📱 Отправить номер", request_contact=True)]],
+                resize_keyboard=True
+            )
+        )
+        await state.set_state(Registration.phone)
+
+@router.message(Registration.phone, F.contact)
+async def process_phone(message: Message, state: FSMContext):
+    phone = message.contact.phone_number
+    await state.update_data(phone=phone)
+    
+    await message.answer(
+        "Отлично! Теперь введите ваше ФИО:",
+        reply_markup=ReplyKeyboardRemove()
+    )
+    await state.set_state(Registration.full_name)
+
+# ... остальные шаги регистрации
+```
+
+**handlers/user/receipt.py:**
+```python
+from aiogram import Router, F
+from aiogram.types import Message
+from services.api_client import APIClient
+
+router = Router()
+api_client = APIClient()
+
+@router.message(F.photo)
+async def handle_receipt_photo(message: Message):
+    # Получаем последний (наибольший) размер фото
+    photo = message.photo[-1]
+    
+    # Скачиваем файл
+    file = await message.bot.get_file(photo.file_id)
+    
+    # Отправляем в backend
+    result = await api_client.upload_receipt(
+        user_id=message.from_user.id,
+        file_id=photo.file_id,
+        file_path=file.file_path
+    )
+    
+    if result['success']:
+        await message.answer(
+            "✅ Чек получен и отправлен на проверку!\n\n"
+            "Это займет несколько секунд. Мы уведомим вас о результате.",
+            reply_markup=get_main_keyboard()
+        )
+    else:
+        await message.answer(
+            f"❌ Ошибка: {result['error']}\n\n"
+            "Попробуйте еще раз или обратитесь в поддержку."
+        )
+```
+
+**keyboards/user.py:**
+```python
+from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, WebAppInfo
+from config import settings
+
+def get_main_keyboard() -> ReplyKeyboardMarkup:
+    """Главное меню пользователя"""
+    return ReplyKeyboardMarkup(
+        keyboard=[
+            [
+                KeyboardButton(
+                    text="🛍️ Открыть меню",
+                    web_app=WebAppInfo(url=settings.WEBAPP_URL)
+                )
+            ],
+            [
+                KeyboardButton(text="📜 История заказов"),
+                KeyboardButton(text="ℹ️ Помощь")
+            ]
+        ],
+        resize_keyboard=True
+    )
+```
+
+### 6.3. WebApp (Telegram Mini App)
+
+#### 6.3.1. Структура проекта
+
+```
+webapp/
+├── index.html                    # Главная - каталог
+├── cart.html                     # Корзина
+├── history.html                  # История заказов
+├── order.html                    # Детали заказа
+│
+├── css/
+│   ├── styles.css               # Основные стили
+│   ├── product-card.css         # Стили карточки товара
+│   └── cart.css                 # Стили корзины
+│
+├── js/
+│   ├── app.js                   # Главный файл, инициализация
+│   ├── api.js                   # API клиент
+│   ├── tg.js                    # Telegram WebApp SDK wrapper
+│   ├── cart.js                  # Логика корзины (localStorage)
+│   ├── menu.js                  # Отображение меню
+│   ├── order.js                 # Создание заказа
+│   └── history.js               # История заказов
+│
+└── assets/
+    ├── images/
+    │   ├── logo.png
+    │   ├── placeholder.png
+    │   └── icons/
+    └── fonts/
+```
+
+#### 6.3.2. Пример кода
+
+**index.html:**
+```html
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>PizzaMatIF</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+</head>
+<body>
+    <!-- Выбор точки -->
+    <div id="location-selector" class="location-selector">
+        <h2>📍 Выберите точку получения</h2>
+        <div id="locations-list" class="locations-list"></div>
+    </div>
+
+    <!-- Каталог -->
+    <div id="catalog" class="catalog" style="display: none;">
+        <!-- Шапка -->
+        <div class="header">
+            <div class="location-badge" id="selected-location">
+                <span id="location-name"></span>
+                <button id="change-location-btn">Изменить</button>
+            </div>
+            <div class="cart-badge" id="cart-badge">
+                <span>🛒</span>
+                <span id="cart-count">0</span>
+            </div>
+        </div>
+
+        <!-- Категории -->
+        <div class="categories" id="categories"></div>
+
+        <!-- Товары -->
+        <div class="products" id="products"></div>
+    </div>
+
+    <!-- Корзина (модальное окно) -->
+    <div id="cart-modal" class="modal">
+        <div class="modal-content">
+            <h2>Корзина</h2>
+            <div id="cart-items"></div>
+            <div class="cart-total">
+                <strong>Итого:</strong>
+                <span id="cart-total-amount">0 ₸</span>
+            </div>
+            <button id="checkout-btn" class="btn-primary">Оформить заказ</button>
+        </div>
+    </div>
+
+    <script src="js/tg.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/cart.js"></script>
+    <script src="js/menu.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
+```
+
+**js/tg.js:**
+```javascript
+// Wrapper для Telegram WebApp SDK
+class TelegramApp {
+    constructor() {
+        this.tg = window.Telegram.WebApp;
+        this.tg.expand();
+        this.tg.enableClosingConfirmation();
+        
+        // Получаем данные пользователя
+        this.user = this.tg.initDataUnsafe?.user;
+        this.initData = this.tg.initData;
+    }
+
+    showMainButton(text, onClick) {
+        this.tg.MainButton.setText(text);
+        this.tg.MainButton.show();
+        this.tg.MainButton.onClick(onClick);
+    }
+
+    hideMainButton() {
+        this.tg.MainButton.hide();
+    }
+
+    showAlert(message) {
+        this.tg.showAlert(message);
+    }
+
+    showConfirm(message, callback) {
+        this.tg.showConfirm(message, callback);
+    }
+
+    close() {
+        this.tg.close();
+    }
+
+    sendData(data) {
+        this.tg.sendData(JSON.stringify(data));
+    }
+}
+
+const tgApp = new TelegramApp();
+```
+
+**js/api.js:**
+```javascript
+// API клиент
+class APIClient {
+    constructor() {
+        this.baseURL = 'https://your-domain.com/api/v1';
+    }
+
+    async request(endpoint, options = {}) {
+        const url = `${this.baseURL}${endpoint}`;
+        
+        const headers = {
+            'Content-Type': 'application/json',
+            'X-Telegram-Init-Data': tgApp.initData,
+            ...options.headers
+        };
+
+        try {
+            const response = await fetch(url, {
+                ...options,
+                headers
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.error?.message || 'Ошибка запроса');
+            }
+
+            return data;
+        } catch (error) {
+            console.error('API Error:', error);
+            throw error;
+        }
+    }
+
+    // Меню
+    async getLocations(cityId) {
+        return this.request(`/menu/locations?city_id=${cityId}`);
+    }
+
+    async getCategories(locationId) {
+        return this.request(`/menu/categories?location_id=${locationId}`);
+    }
+
+    async getProducts(locationId, categoryId = null) {
+        const query = categoryId 
+            ? `location_id=${locationId}&category_id=${categoryId}`
+            : `location_id=${locationId}`;
+        return this.request(`/menu/products?${query}`);
+    }
+
+    // Заказы
+    async calculateOrder(locationId, items) {
+        return this.request('/orders/calculate', {
+            method: 'POST',
+            body: JSON.stringify({ location_id: locationId, items })
+        });
+    }
+
+    async createOrder(locationId, items) {
+        return this.request('/orders/create', {
+            method: 'POST',
+            body: JSON.stringify({ location_id: locationId, items })
+        });
+    }
+}
+
+const api = new APIClient();
+```
+
+**js/cart.js:**
+```javascript
+// Управление корзиной (в localStorage)
+class Cart {
+    constructor() {
+        this.storageKey = 'pizzamat_cart';
+        this.items = this.load();
+    }
+
+    load() {
+        const data = localStorage.getItem(this.storageKey);
+        return data ? JSON.parse(data) : [];
+    }
+
+    save() {
+        localStorage.setItem(this.storageKey, JSON.stringify(this.items));
+        this.updateBadge();
+    }
+
+    add(product, quantity = 1, options = []) {
+        const existingIndex = this.items.findIndex(
+            item => item.id === product.id && 
+                    JSON.stringify(item.options) === JSON.stringify(options)
+        );
+
+        if (existingIndex >= 0) {
+            this.items[existingIndex].quantity += quantity;
+        } else {
+            this.items.push({
+                id: product.id,
+                name: product.name,
+                price: product.price,
+                quantity: quantity,
+                options: options,
+                image: product.image_url
+            });
+        }
+
+        this.save();
+    }
+
+    remove(index) {
+        this.items.splice(index, 1);
+        this.save();
+    }
+
+    clear() {
+        this.items = [];
+        this.save();
+    }
+
+    getTotal() {
+        return this.items.reduce((sum, item) => {
+            const optionsPrice = item.options.reduce((s, opt) => s + opt.price_modifier, 0);
+            return sum + (item.price + optionsPrice) * item.quantity;
+        }, 0);
+    }
+
+    getCount() {
+        return this.items.reduce((sum, item) => sum + item.quantity, 0);
+    }
+
+    updateBadge() {
+        const badge = document.getElementById('cart-count');
+        if (badge) {
+            const count = this.getCount();
+            badge.textContent = count;
+            badge.style.display = count > 0 ? 'block' : 'none';
+        }
+    }
+}
+
+const cart = new Cart();
+```
+
+### 6.4. n8n Workflows
+
+#### 6.4.1. Workflow: Receipt Validation
+
+**Описание:** Проверка чека через GPT-4o Vision
+
+**Триггеры:**
+- Webhook: `POST /webhook/receipt-validation`
+
+**Узлы:**
+
+1. **Webhook** - Получение данных о чеке
+   - Input: `{order_id, image_url, user_entered_amount}`
+
+2. **HTTP Request** - Скачивание изображения
+   - URL: `{{$json.image_url}}`
+   - Method: GET
+   - Response Format: File
+
+3. **Code** - Вычисление SHA-256 hash
+   ```javascript
+   const crypto = require('crypto');
+   const imageBuffer = items[0].binary.data;
+   const hash = crypto.createHash('sha256').update(imageBuffer).digest('hex');
+   return {json: {hash}};
+   ```
+
+4. **Postgres** - Проверка дубликата
+   ```sql
+   SELECT EXISTS(
+       SELECT 1 FROM receipts_hash WHERE image_hash = '{{$json.hash}}'
+   ) as is_duplicate
+   ```
+
+5. **IF** - Если дубликат → вернуть ошибку
+
+6. **OpenAI** - GPT-4o Vision
+   - Model: `gpt-4o`
+   - Messages:
+   ```json
+   [
+     {
+       "role": "user",
+       "content": [
+         {
+           "type": "text",
+           "text": "Проанализируй это изображение чека и извлеки информацию в JSON формате..."
+         },
+         {
+           "type": "image_url",
+           "image_url": {
+             "url": "{{$json.image_url}}"
+           }
+         }
+       ]
+     }
+   ]
+   ```
+
+7. **Code** - Парсинг JSON ответа
+   ```javascript
+   const response = $input.first().json.choices[0].message.content;
+   const parsed = JSON.parse(response);
+   return {json: parsed};
+   ```
+
+8. **Code** - Сравнение сумм
+   ```javascript
+   const validation = $input.first().json;
+   const orderAmount = parseFloat($('Webhook').first().json.body.order_amount);
+   const receiptAmount = parseFloat(validation.amount);
+   
+   const difference = Math.abs(orderAmount - receiptAmount);
+   const isValid = difference <= 50; // погрешность 50₸
+   
+   return {
+       json: {
+           ...validation,
+           amount_match: isValid,
+           difference: difference
+       }
+   };
+   ```
+
+9. **Postgres** - Сохранить результат
+   ```sql
+   UPDATE orders 
+   SET 
+       receipt_validated_at = NOW(),
+       receipt_validation_result = '{{$json}}',
+       status = 'paid'
+   WHERE id = {{$('Webhook').first().json.body.order_id}}
+   ```
+
+10. **Postgres** - Сохранить hash
+    ```sql
+    INSERT INTO receipts_hash (image_hash, order_id)
+    VALUES ('{{$json.hash}}', {{$('Webhook').first().json.body.order_id}})
+    ```
+
+11. **HTTP Request** - Уведомить backend
+    - URL: `{{$env.BACKEND_URL}}/api/v1/webhooks/n8n`
+    - Method: POST
+    - Body:
+    ```json
+    {
+      "event": "receipt_validated",
+      "order_id": "{{$('Webhook').first().json.body.order_id}}",
+      "validation_result": "{{$json}}"
+    }
+    ```
+
+12. **Telegram** - Отправить в менеджерский канал
+    - Chat ID: `{{$env.MANAGER_CHANNEL_ID}}`
+    - Message: (см. раздел 6.4.2)
+
+13. **Telegram** - Уведомить пользователя
+    - Chat ID: `{{$('Webhook').first().json.body.user_telegram_id}}`
+    - Message:
+    ```
+    ✅ Чек принят!
+    
+    Ваш заказ #{{$('Webhook').first().json.body.order_code}} проверен.
+    Ожидайте подтверждения менеджера.
+    ```
+
+#### 6.4.2. Шаблон сообщения для менеджерского канала
+
+```javascript
+// n8n Code Node - Формирование сообщения
+const order = $('Get Order Details').first().json;
+const validation = $('Parse Validation').first().json;
+
+const message = `
+🆕 <b>НОВЫЙ ЗАКАЗ #${order.order_code}</b>
+
+👤 <b>${order.user_full_name}</b>
+📞 ${order.user_phone}
+
+📍 <b>${order.location_city} - ${order.location_name}</b>
+🕐 ${new Date(order.created_at).toLocaleString('ru-RU')}
+
+🛒 <b>Состав заказа:</b>
+${order.items.map(item => 
+    `• ${item.quantity}× ${item.product_name} ${item.options ? `(${item.options})` : ''} - ${item.total_price}₸`
+).join('\n')}
+
+💰 <b>Итого: ${order.total_amount}₸</b>
+
+🤖 <b>Автопроверка GPT-4o:</b>
+${validation.is_valid_receipt ? '✅' : '⚠️'} Валидность: ${validation.is_valid_receipt ? 'ОК' : 'Требует проверки'}
+💵 Сумма: ${validation.amount}₸ ${validation.amount_match ? '✅' : '⚠️ РАСХОЖДЕНИЕ ' + validation.difference + '₸'}
+🏦 Система: ${validation.payment_system}
+📅 Дата: ${validation.date} ${validation.time}
+
+${validation.issues && validation.issues.length > 0 ? 
+    `⚠️ <b>Замечания:</b>\n${validation.issues.map(i => `• ${i}`).join('\n')}\n` : ''
+}
+
+🔑 <b>Код выдачи: ${order.order_code}</b>
+`;
+
+return {
+    json: {
+        message: message,
+        photo: order.receipt_image_url,
+        order_id: order.id
+    }
+};
+```
+
+#### 6.4.3. Workflow: Manager Actions
+
+**Описание:** Обработка действий менеджера (подтвердить/отменить)
+
+**Триггеры:**
+- Telegram: Callback Query
+
+**Узлы:**
+
+1. **Telegram Trigger** - Ловим callback
+   - Callback Data Pattern: `^(confirm|cancel)_\d+$`
+
+2. **Code** - Парсим action и order_id
+   ```javascript
+   const [action, orderId] = $input.first().json.data.split('_');
+   return {json: {action, orderId: parseInt(orderId)}};
+   ```
+
+3. **IF** - Если confirm
+
+4. **Postgres** - Обновить статус
+   ```sql
+   UPDATE orders 
+   SET 
+       status = 'confirmed',
+       confirmed_at = NOW(),
+       confirmed_by_user_id = {{$json.callback_user_id}}
+   WHERE id = {{$json.orderId}}
+   RETURNING *
+   ```
+
+5. **Telegram** - Уведомить пользователя
+   ```
+   ✅ Ваш заказ #{{$json.order_code}} подтвержден!
+   
+   Приходите с кодом: {{$json.order_code}}
+   📍 {{$json.location_address}}
+   🕐 {{$json.location_working_hours}}
+   ```
+
+6. **Telegram** - Обновить сообщение в канале
+   - Edit Message
+   - Remove Inline Keyboard
+   - Add: `✅ ПОДТВЕРЖДЕН [Менеджер: {{$json.manager_name}}]`
+
+7. **ELSE** - Если cancel
+
+8. **Telegram** - Запросить причину
+   - Force Reply: true
+   - Text: "Укажите причину отмены:"
+
+9. **Wait** - Ждем ответ
+
+10. **Postgres** - Обновить статус
+    ```sql
+    UPDATE orders 
+    SET 
+        status = 'cancelled',
+        cancellation_reason = '{{$json.text}}'
+    WHERE id = {{$json.orderId}}
+    ```
+
+11. **Telegram** - Уведомить пользователя
+    ```
+    ❌ Заказ #{{$json.order_code}} отменен
+    
+    Причина: {{$json.cancellation_reason}}
+    
+    Приносим извинения за неудобства.
+    ```
+
+---
+
+## 7. ИНТЕГРАЦИИ
+
+### 7.1. OpenAI GPT-4o Vision
+
+**Endpoint:** `https://api.openai.com/v1/chat/completions`
+
+**Промпт для проверки чека:**
+```
+Проанализируй это изображение банковского чека/перевода.
+
+Твоя задача - определить, является ли это настоящим чеком от банка или платежной системы, и извлечь ключевую информацию.
+
+Верни результат СТРОГО в JSON формате:
+{
+  "is_valid_receipt": true/false,
+  "amount": 3000.00,
+  "date": "2024-10-25",
+  "time": "14:30",
+  "payment_system": "Kaspi/Halyk/другое",
+  "sender": "название или номер отправителя",
+  "recipient": "название или номер получателя",
+  "confidence": 0.95,
+  "issues": []
+}
+
+Критерии валидности:
+1. Это банковский перевод или чек, а не скриншот баланса
+2. Видны обязательные реквизиты (сумма, дата, стороны перевода)
+3. Качество изображения позволяет четко прочитать данные
+4. Нет явных признаков подделки (редактирование в графическом редакторе)
+
+Если что-то вызывает сомнения - укажи в массиве "issues".
+
+ВАЖНО: Верни ТОЛЬКО JSON, без дополнительного текста!
+```
+
+**Обработка ответа:**
+```python
+import openai
+import json
+
+async def validate_receipt_with_gpt4(image_url: str) -> dict:
+    client = openai.AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
+    
+    response = await client.chat.completions.create(
+        model="gpt-4o",
+        messages=[
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "text",
+                        "text": PROMPT_TEMPLATE
+                    },
+                    {
+                        "type": "image_url",
+                        "image_url": {
+                            "url": image_url,
+                            "detail": "high"
+                        }
+                    }
+                ]
+            }
+        ],
+        max_tokens=500,
+        temperature=0.1  # Низкая температура для точности
+    )
+    
+    # Парсим JSON из ответа
+    content = response.choices[0].message.content
+    
+    # Убираем markdown если есть
+    content = content.replace('```json', '').replace('```', '').strip()
+    
+    return json.loads(content)
+```
+
+### 7.2. Telegram Bot API
+
+**Webhook Setup:**
+```python
+import httpx
+
+async def set_telegram_webhook(bot_token: str, webhook_url: str):
+    url = f"https://api.telegram.org/bot{bot_token}/setWebhook"
+    
+    async with httpx.AsyncClient() as client:
+        response = await client.post(url, json={
+            "url": webhook_url,
+            "allowed_updates": ["message", "callback_query"],
+            "drop_pending_updates": True,
+            "secret_token": settings.TELEGRAM_WEBHOOK_SECRET
+        })
+        
+        return response.json()
+```
+
+**Отправка в канал с кнопками:**
+```python
+from aiogram import Bot
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+
+async def send_order_to_manager_channel(
+    bot: Bot,
+    order: Order,
+    validation_result: dict
+):
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [
+            InlineKeyboardButton(
+                text="✅ Подтвердить",
+                callback_data=f"confirm_{order.id}"
+            ),
+            InlineKeyboardButton(
+                text="❌ Отменить",
+                callback_data=f"cancel_{order.id}"
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                text="📋 Детали",
+                callback_data=f"details_{order.id}"
+            )
+        ]
+    ])
+    
+    # Формируем сообщение
+    message_text = format_order_message(order, validation_result)
+    
+    # Отправляем фото чека
+    await bot.send_photo(
+        chat_id=settings.MANAGER_CHANNEL_ID,
+        photo=order.receipt_image_url,
+        caption=message_text,
+        parse_mode="HTML",
+        reply_markup=keyboard
+    )
+    
+    # Отправляем QR-код отдельным сообщением
+    await bot.send_photo(
+        chat_id=settings.MANAGER_CHANNEL_ID,
+        photo=order.qr_code_url,
+        caption=f"QR-код заказа #{order.order_code}"
+    )
+```
+
+### 7.3. PostgreSQL (asyncpg)
+
+**Connection Pool:**
+```python
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+from sqlalchemy.orm import sessionmaker
+
+engine = create_async_engine(
+    settings.DATABASE_URL,
+    echo=settings.DEBUG,
+    pool_size=20,
+    max_overflow=10,
+    pool_pre_ping=True
+)
+
+async_session = sessionmaker(
+    engine,
+    class_=AsyncSession,
+    expire_on_commit=False
+)
+
+async def get_db() -> AsyncSession:
+    async with async_session() as session:
+        yield session
+```
+
+---
+
+## 8. БЕЗОПАСНОСТЬ
+
+### 8.1. Аутентификация и авторизация
+
+#### 8.1.1. JWT Токены для WebApp
+
+```python
+from datetime import datetime, timedelta
+from jose import jwt, JWTError
+from passlib.context import CryptContext
+
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+def create_access_token(data: dict, expires_delta: timedelta = None):
+    to_encode = data.copy()
+    
+    if expires_delta:
+        expire = datetime.utcnow() + expires_delta
+    else:
+        expire = datetime.utcnow() + timedelta(hours=24)
+    
+    to_encode.update({"exp": expire})
+    
+    encoded_jwt = jwt.encode(
+        to_encode,
+        settings.JWT_SECRET,
+        algorithm="HS256"
+    )
+    
+    return encoded_jwt
+
+def verify_token(token: str) -> dict:
+    try:
+        payload = jwt.decode(
+            token,
+            settings.JWT_SECRET,
+            algorithms=["HS256"]
+        )
+        return payload
+    except JWTError:
+        return None
+```
+
+#### 8.1.2. Валидация Telegram initData
+
+```python
+import hmac
+import hashlib
+from urllib.parse import parse_qsl
+
+def validate_telegram_webapp_data(init_data: str, bot_token: str) -> bool:
+    """
+    Проверка подлинности данных из Telegram WebApp
+    """
+    try:
+        parsed_data = dict(parse_qsl(init_data))
+        received_hash = parsed_data.pop('hash', None)
+        
+        if not received_hash:
+            return False
+        
+        # Сортируем и формируем строку для проверки
+        data_check_string = '\n'.join(
+            f"{k}={v}" for k, v in sorted(parsed_data.items())
+        )
+        
+        # Вычисляем HMAC
+        secret_key = hmac.new(
+            "WebAppData".encode(),
+            bot_token.encode(),
+            hashlib.sha256
+        ).digest()
+        
+        calculated_hash = hmac.new(
+            secret_key,
+            data_check_string.encode(),
+            hashlib.sha256
+        ).hexdigest()
+        
+        return calculated_hash == received_hash
+    
+    except Exception as e:
+        return False
+```
+
+### 8.2. Rate Limiting
+
+```python
+from fastapi import Request, HTTPException
+from datetime import datetime, timedelta
+from collections import defaultdict
+
+class RateLimiter:
+    def __init__(self, requests: int = 100, window: int = 60):
+        self.requests = requests
+        self.window = timedelta(seconds=window)
+        self.cache = defaultdict(list)
+    
+    def is_allowed(self, key: str) -> bool:
+        now = datetime.now()
+        
+        # Удаляем старые записи
+        self.cache[key] = [
+            timestamp for timestamp in self.cache[key]
+            if now - timestamp < self.window
+        ]
+        
+        # Проверяем лимит
+        if len(self.cache[key]) >= self.requests:
+            return False
+        
+        # Добавляем новый запрос
+        self.cache[key].append(now)
+        return True
+
+rate_limiter = RateLimiter(requests=100, window=60)
+
+async def rate_limit_middleware(request: Request, call_next):
+    # IP адрес или telegram_id в качестве ключа
+    key = request.client.host
+    
+    if not rate_limiter.is_allowed(key):
+        raise HTTPException(
+            status_code=429,
+            detail="Too many requests"
+        )
+    
+    response = await call_next(request)
+    return response
+```
+
+### 8.3. Защита от повторного использования чеков
+
+```python
+async def check_and_save_receipt_hash(
+    db: AsyncSession,
+    image_path: str,
+    order_id: int
+) -> tuple[bool, str]:
+    """
+    Проверяет уникальность чека и сохраняет его hash
+    
+    Returns:
+        (is_duplicate, hash)
+    """
+    # Вычисляем hash
+    image_hash = calculate_image_hash(image_path)
+    
+    # Проверяем в БД
+    result = await db.execute(
+        select(ReceiptsHash).where(ReceiptsHash.image_hash == image_hash)
+    )
+    existing = result.scalar_one_or_none()
+    
+    if existing:
+        return (True, image_hash)
+    
+    # Сохраняем новый hash
+    receipt_hash = ReceiptsHash(
+        image_hash=image_hash,
+        order_id=order_id
+    )
+    db.add(receipt_hash)
+    await db.commit()
+    
+    return (False, image_hash)
+```
+
+### 8.4. Валидация загружаемых файлов
+
+```python
+from PIL import Image
+import magic
+
+ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp']
+MAX_FILE_SIZE = 10 * 1024 * 1024  # 10 MB
+
+async def validate_uploaded_image(file_path: str) -> tuple[bool, str]:
+    """
+    Валидация загруженного изображения
+    
+    Returns:
+        (is_valid, error_message)
+    """
+    # Проверка размера
+    file_size = os.path.getsize(file_path)
+    if file_size > MAX_FILE_SIZE:
+        return (False, "Файл слишком большой (макс 10 МБ)")
+    
+    # Проверка типа через magic numbers
+    mime = magic.from_file(file_path, mime=True)
+    if mime not in ALLOWED_IMAGE_TYPES:
+        return (False, f"Неподдерживаемый тип файла: {mime}")
+    
+    # Проверка что файл открывается как изображение
+    try:
+        with Image.open(file_path) as img:
+            img.verify()
+    except Exception:
+        return (False, "Поврежденное изображение")
+    
+    return (True, "")
+```
+
+### 8.5. SQL Injection Protection
+
+**Используем параметризованные запросы через SQLAlchemy:**
+```python
+# ✅ ПРАВИЛЬНО - через ORM
+result = await db.execute(
+    select(User).where(User.telegram_id == telegram_id)
+)
+
+# ✅ ПРАВИЛЬНО - параметризованный запрос
+result = await db.execute(
+    text("SELECT * FROM users WHERE telegram_id = :tid"),
+    {"tid": telegram_id}
+)
+
+# ❌ НЕПРАВИЛЬНО - конкатенация строк
+query = f"SELECT * FROM users WHERE telegram_id = {telegram_id}"
+```
+
+### 8.6. Безопасное хранение секретов
+
+**.env файл:**
+```bash
+# НЕ КОММИТИТЬ В GIT!
+
+# Database
+DATABASE_URL=postgresql+asyncpg://user:password@localhost/db
+
+# Telegram
+BOT_TOKEN=1234567890:ABCdefGHIjklMNOpqrSTUvwxYZ
+TELEGRAM_WEBHOOK_SECRET=random_secret_32_chars
+
+# JWT
+JWT_SECRET=another_random_secret_min_32_chars
+
+# OpenAI
+OPENAI_API_KEY=sk-...
+
+# n8n
+N8N_WEBHOOK_SECRET=yet_another_secret
+```
+
+**config.py с Pydantic Settings:**
+```python
+from pydantic_settings import BaseSettings
+from functools import lru_cache
+
+class Settings(BaseSettings):
+    # Database
+    DATABASE_URL: str
+    
+    # Telegram
+    BOT_TOKEN: str
+    TELEGRAM_WEBHOOK_SECRET: str
+    MANAGER_CHANNEL_ID: int
+    ADMIN_TELEGRAM_IDS: list[int]
+    
+    # JWT
+    JWT_SECRET: str
+    JWT_ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_HOURS: int = 24
+    
+    # OpenAI
+    OPENAI_API_KEY: str
+    
+    # n8n
+    N8N_URL: str
+    N8N_WEBHOOK_SECRET: str
+    
+    # App
+    DEBUG: bool = False
+    ALLOWED_ORIGINS: list[str] = ["https://web.telegram.org"]
+    
+    class Config:
+        env_file = ".env"
+        case_sensitive = True
+
+@lru_cache()
+def get_settings():
+    return Settings()
+
+settings = get_settings()
+```
+
+---
+
+## 9. DEVOPS И ИНФРАСТРУКТУРА
+
+### 9.1. Docker Compose (Production)
+
+```yaml
+version: '3.8'
+
+services:
+  # PostgreSQL
+  postgres:
+    image: postgres:15-alpine
+    container_name: pizzamat_postgres
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=ru_RU.UTF-8"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "127.0.0.1:5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - pizzamat_network
+
+  # Redis
+  redis:
+    image: redis:7-alpine
+    container_name: pizzamat_redis
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD}
+    volumes:
+      - redis_data:/data
+    ports:
+      - "127.0.0.1:6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - pizzamat_network
+
+  # Backend API
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: pizzamat_backend
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://${DB_USER}:${DB_PASSWORD}@postgres:5432/${DB_NAME}
+      - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379/0
+      - TELEGRAM_BOT_TOKEN=${BOT_TOKEN}
+      - JWT_SECRET=${JWT_SECRET}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - N8N_WEBHOOK_URL=${N8N_URL}
+      - MANAGER_CHANNEL_ID=${MANAGER_CHANNEL}
+      - DEBUG=false
+    volumes:
+      - ./backend:/app
+      - uploads:/app/uploads
+      - ./logs/backend:/app/logs
+    ports:
+      - "127.0.0.1:8000:8000"
+    command: >
+      sh -c "
+        alembic upgrade head &&
+        uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4
+      "
+    restart: unless-stopped
+    networks:
+      - pizzamat_network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Telegram Bot
+  bot:
+    build:
+      context: ./bot
+      dockerfile: Dockerfile
+    container_name: pizzamat_bot
+    depends_on:
+      - backend
+    environment:
+      - TELEGRAM_BOT_TOKEN=${BOT_TOKEN}
+      - BACKEND_URL=http://backend:8000
+      - ADMIN_TELEGRAM_IDS=${ADMIN_IDS}
+      - MANAGER_CHANNEL_ID=${MANAGER_CHANNEL}
+      - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379/1
+    volumes:
+      - ./bot:/app
+      - ./logs/bot:/app/logs
+    restart: unless-stopped
+    networks:
+      - pizzamat_network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # n8n
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: pizzamat_n8n
+    depends_on:
+      - postgres
+    environment:
+      - DB_TYPE=postgresdb
+      - DB_POSTGRESDB_HOST=postgres
+      - DB_POSTGRESDB_PORT=5432
+      - DB_POSTGRESDB_DATABASE=${DB_NAME}_n8n
+      - DB_POSTGRESDB_USER=${DB_USER}
+      - DB_POSTGRESDB_PASSWORD=${DB_PASSWORD}
+      - N8N_BASIC_AUTH_ACTIVE=true
+      - N8N_BASIC_AUTH_USER=${N8N_USER}
+      - N8N_BASIC_AUTH_PASSWORD=${N8N_PASSWORD}
+      - N8N_HOST=${N8N_HOST}
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=https
+      - WEBHOOK_URL=${N8N_WEBHOOK_URL}
+      - GENERIC_TIMEZONE=Asia/Almaty
+    ports:
+      - "127.0.0.1:5678:5678"
+    volumes:
+      - n8n_data:/home/node/.n8n
+      - ./n8n/workflows:/home/node/.n8n/workflows
+      - ./logs/n8n:/home/node/.n8n/logs
+    restart: unless-stopped
+    networks:
+      - pizzamat_network
+
+  # Nginx
+  nginx:
+    image: nginx:alpine
+    container_name: pizzamat_nginx
+    depends_on:
+      - backend
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+      - ./webapp:/usr/share/nginx/html/webapp:ro
+      - uploads:/usr/share/nginx/html/uploads:ro
+      - ./logs/nginx:/var/log/nginx
+    restart: unless-stopped
+    networks:
+      - pizzamat_network
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  n8n_data:
+    driver: local
+  uploads:
+    driver: local
+
+networks:
+  pizzamat_network:
+    driver: bridge
+```
+
+### 9.2. Nginx Configuration
+
+**nginx/nginx.conf:**
+```nginx
+user nginx;
+worker_processes auto;
+error_log /var/log/nginx/error.log warn;
+pid /var/run/nginx.pid;
+
+events {
+    worker_connections 1024;
+    use epoll;
+}
+
+http {
+    include /etc/nginx/mime.types;
+    default_type application/octet-stream;
+
+    log_format main '$remote_addr - $remote_user [$time_local] "$request" '
+                    '$status $body_bytes_sent "$http_referer" '
+                    '"$http_user_agent" "$http_x_forwarded_for"';
+
+    access_log /var/log/nginx/access.log main;
+
+    sendfile on;
+    tcp_nopush on;
+    tcp_nodelay on;
+    keepalive_timeout 65;
+    types_hash_max_size 2048;
+    client_max_body_size 10M;
+
+    # Gzip
+    gzip on;
+    gzip_vary on;
+    gzip_proxied any;
+    gzip_comp_level 6;
+    gzip_types text/plain text/css text/xml text/javascript 
+               application/json application/javascript application/xml+rss;
+
+    # Rate limiting
+    limit_req_zone $binary_remote_addr zone=api_limit:10m rate=10r/s;
+    limit_req_zone $binary_remote_addr zone=upload_limit:10m rate=5r/m;
+
+    include /etc/nginx/conf.d/*.conf;
+}
+```
+
+**nginx/conf.d/pizzamat.conf:**
+```nginx
+# Redirect HTTP to HTTPS
+server {
+    listen 80;
+    server_name yourdomain.com;
+    
+    location /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+    }
+    
+    location / {
+        return 301 https://$server_name$request_uri;
+    }
+}
+
+# HTTPS Server
+server {
+    listen 443 ssl http2;
+    server_name yourdomain.com;
+
+    # SSL
+    ssl_certificate /etc/nginx/ssl/fullchain.pem;
+    ssl_certificate_key /etc/nginx/ssl/privkey.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers HIGH:!aNULL:!MD5;
+    ssl_prefer_server_ciphers on;
+    ssl_session_cache shared:SSL:10m;
+    ssl_session_timeout 10m;
+
+    # Security headers
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-XSS-Protection "1; mode=block" always;
+
+    # WebApp
+    location /webapp/ {
+        alias /usr/share/nginx/html/webapp/;
+        try_files $uri $uri/ /webapp/index.html;
+        expires 1h;
+        add_header Cache-Control "public, must-revalidate";
+    }
+
+    # Static files (uploads)
+    location /uploads/ {
+        alias /usr/share/nginx/html/uploads/;
+        expires 7d;
+        add_header Cache-Control "public, immutable";
+    }
+
+    # API
+    location /api/ {
+        limit_req zone=api_limit burst=20 nodelay;
+        
+        proxy_pass http://backend:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        
+        # Timeouts
+        proxy_connect_timeout 60s;
+        proxy_send_timeout 60s;
+        proxy_read_timeout 60s;
+    }
+
+    # Webhooks (отдельный rate limit)
+    location /api/v1/webhooks/ {
+        limit_req zone=upload_limit burst=5 nodelay;
+        
+        proxy_pass http://backend:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        
+        client_max_body_size 10M;
+    }
+
+    # n8n (защищено basic auth)
+    location /n8n/ {
+        proxy_pass http://n8n:5678/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        
+        # WebSocket support
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+    }
+
+    # Health check
+    location /health {
+        access_log off;
+        return 200 "OK\n";
+        add_header Content-Type text/plain;
+    }
+}
+```
+
+### 9.3. Dockerfile Examples
+
+**backend/Dockerfile:**
+```dockerfile
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Установка системных зависимостей
+RUN apt-get update && apt-get install -y \
+    gcc \
+    postgresql-client \
+    libpq-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Копирование requirements
+COPY requirements.txt .
+
+# Установка Python зависимостей
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Копирование кода
+COPY . .
+
+# Создание директорий
+RUN mkdir -p /app/uploads /app/logs
+
+# Пользователь без root прав
+RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
+USER appuser
+
+# Открытие порта
+EXPOSE 8000
+
+# Healthcheck
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+    CMD python -c "import requests; requests.get('http://localhost:8000/health')"
+
+# Запуск
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+```
+
+**bot/Dockerfile:**
+```dockerfile
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Установка зависимостей
+RUN apt-get update && apt-get install -y \
+    gcc \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY . .
+
+RUN mkdir -p /app/logs
+
+RUN useradd -m -u 1000 botuser && chown -R botuser:botuser /app
+USER botuser
+
+CMD ["python", "main.py"]
+```
+
+### 9.4. Backup Strategy
+
+**backup.sh:**
+```bash
+#!/bin/bash
+
+# Настройки
+BACKUP_DIR="/backups"
+DATE=$(date +%Y%m%d_%H%M%S)
+RETENTION_DAYS=7
+
+# PostgreSQL backup
+docker exec pizzamat_postgres pg_dump -U ${DB_USER} ${DB_NAME} | gzip > \
+    ${BACKUP_DIR}/postgres_${DATE}.sql.gz
+
+# Redis backup
+docker exec pizzamat_redis redis-cli --rdb /data/dump.rdb
+docker cp pizzamat_redis:/data/dump.rdb ${BACKUP_DIR}/redis_${DATE}.rdb
+
+# Uploads backup
+tar -czf ${BACKUP_DIR}/uploads_${DATE}.tar.gz ./uploads/
+
+# n8n workflows backup
+tar -czf ${BACKUP_DIR}/n8n_${DATE}.tar.gz ./n8n/workflows/
+
+# Удаление старых бэкапов
+find ${BACKUP_DIR} -name "*.gz" -mtime +${RETENTION_DAYS} -delete
+find ${BACKUP_DIR} -name "*.rdb" -mtime +${RETENTION_DAYS} -delete
+
+# Отправка в облако (опционально)
+# rclone copy ${BACKUP_DIR} remote:backups/pizzamat/
+```
+
+**Crontab:**
+```cron
+# Ежедневный бэкап в 3:00
+0 3 * * * /opt/pizzamat/backup.sh >> /var/log/pizzamat-backup.log 2>&1
+```
+
+### 9.5. Мониторинг и логирование
+
+**docker-compose.monitoring.yml:**
+```yaml
+version: '3.8'
+
+services:
+  # Prometheus
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: pizzamat_prometheus
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+    ports:
+      - "127.0.0.1:9090:9090"
+    networks:
+      - pizzamat_network
+
+  # Grafana
+  grafana:
+    image: grafana/grafana:latest
+    container_name: pizzamat_grafana
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD}
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana-dashboards:/etc/grafana/provisioning/dashboards
+    ports:
+      - "127.0.0.1:3000:3000"
+    networks:
+      - pizzamat_network
+
+  # Loki (для логов)
+  loki:
+    image: grafana/loki:latest
+    container_name: pizzamat_loki
+    ports:
+      - "127.0.0.1:3100:3100"
+    volumes:
+      - ./monitoring/loki-config.yml:/etc/loki/local-config.yaml
+      - loki_data:/loki
+    networks:
+      - pizzamat_network
+
+volumes:
+  prometheus_data:
+  grafana_data:
+  loki_data:
+```
+
+### 9.6. SSL/TLS (Let's Encrypt)
+
+```bash
+# Установка Certbot
+apt-get update
+apt-get install -y certbot python3-certbot-nginx
+
+# Получение сертификата
+certbot certonly --webroot \
+    -w /var/www/certbot \
+    -d yourdomain.com \
+    --email admin@yourdomain.com \
+    --agree-tos \
+    --no-eff-email
+
+# Автообновление (cron)
+0 0 * * * certbot renew --quiet --deploy-hook "docker exec pizzamat_nginx nginx -s reload"
+```
+
+---
+
+## 10. ПЛАН РАЗРАБОТКИ
+
+### Этап 1: Подготовка инфраструктуры (3-5 дней)
+
+**День 1-2: Настройка окружения**
+- [ ] Настройка VPS (Ubuntu 22.04)
+- [ ] Установка Docker, Docker Compose
+- [ ] Настройка домена и DNS
+- [ ] Установка SSL сертификата
+- [ ] Настройка firewall (ufw)
+- [ ] Создание пользователей и SSH ключей
+
+**День 3-4: База данных и сервисы**
+- [ ] Развертывание PostgreSQL
+- [ ] Создание базы данных
+- [ ] Развертывание Redis
+- [ ] Развертывание n8n
+- [ ] Настройка Nginx
+- [ ] Настройка логирования
+
+**День 5: Тестирование инфраструктуры**
+- [ ] Проверка доступности сервисов
+- [ ] Тестирование SSL
+- [ ] Настройка мониторинга
+- [ ] Настройка бэкапов
+
+### Этап 2: Backend API (7-10 дней)
+
+**День 1-2: Основа**
+- [ ] Инициализация FastAPI проекта
+- [ ] Настройка SQLAlchemy
+- [ ] Создание базовых моделей (User, City, Location)
+- [ ] Настройка Alembic
+- [ ] Создание первых миграций
+- [ ] Настройка логирования
+- [ ] Написание тестов для инфраструктуры
+
+**День 3-4: Аутентификация**
+- [ ] Реализация регистрации/логина
+- [ ] JWT генерация и валидация
+- [ ] Валидация Telegram initData
+- [ ] Middleware для авторизации
+- [ ] Endpoints: `/api/v1/auth/*`
+- [ ] Тесты аутентификации
+
+**День 5-6: Меню**
+- [ ] Модели: Category, Product, ProductOption, LocationProduct
+- [ ] Сервис получения меню по точке
+- [ ] Endpoints: `/api/v1/menu/*`
+- [ ] Парсер Excel файлов
+- [ ] Загрузка изображений
+- [ ] Тесты меню API
+
+**День 7-8: Заказы**
+- [ ] Модели: Order, OrderItem, ReceiptsHash
+- [ ] Генератор уникальных кодов
+- [ ] QR-код генератор
+- [ ] Калькуляция заказа
+- [ ] Создание заказа
+- [ ] Endpoints: `/api/v1/orders/*`
+- [ ] Тесты заказов
+
+**День 9-10: Админ и вебхуки**
+- [ ] Admin endpoints
+- [ ] Статистика
+- [ ] Webhook для Telegram
+- [ ] Webhook для n8n
+- [ ] Интеграция с n8n
+- [ ] Финальное тестирование API
+
+### Этап 3: Telegram Bot (5-7 дней)
+
+**День 1-2: Основа бота**
+- [ ] Инициализация aiogram проекта
+- [ ] Структура handlers
+- [ ] Middleware (auth, throttling)
+- [ ] Клавиатуры
+- [ ] Регистрация пользователей
+- [ ] FSM для регистрации
+- [ ] Тестирование регистрации
+
+**День 3-4: Пользовательские функции**
+- [ ] Главное меню
+- [ ] Кнопка WebApp
+- [ ] Прием фото чека
+- [ ] История заказов
+- [ ] Уведомления о статусе
+- [ ] Команда /help
+
+**День 5-6: Админ-функции**
+- [ ] Админ-меню
+- [ ] Загрузка Excel
+- [ ] Управление точками
+- [ ] Просмотр заказов
+- [ ] Статистика
+- [ ] Права доступа
+
+**День 7: Интеграция и тестирование**
+- [ ] Интеграция с Backend API
+- [ ] Обработка ошибок
+- [ ] Логирование
+- [ ] End-to-end тестирование
+
+### Этап 4: WebApp (6-8 дней)
+
+**День 1-2: Базовая структура**
+- [ ] HTML макеты (index, cart, history)
+- [ ] CSS стилизация
+- [ ] Telegram WebApp SDK интеграция
+- [ ] Навигация между страницами
+- [ ] Адаптивная верстка
+
+**День 3-4: Каталог товаров**
+- [ ] Выбор города
+- [ ] Выбор точки выдачи
+- [ ] Отображение категорий
+- [ ] Отображение товаров
+- [ ] Карточка товара с опциями
+- [ ] Фильтрация и поиск
+
+**День 5-6: Корзина и заказ**
+- [ ] Логика корзины (localStorage)
+- [ ] Добавление/удаление товаров
+- [ ] Расчет стоимости
+- [ ] Оформление заказа
+- [ ] Отображение кода и QR
+- [ ] Инструкции по оплате
+
+**День 7-8: История и доработки**
+- [ ] История заказов
+- [ ] Детали заказа
+- [ ] Повтор заказа
+- [ ] Обработка ошибок
+- [ ] Loader-ы и анимации
+- [ ] Тестирование на разных устройствах
+
+### Этап 5: n8n Workflows (3-4 дня)
+
+**День 1-2: Receipt Validation**
+- [ ] Создание workflow
+- [ ] Webhook node
+- [ ] HTTP Request (download image)
+- [ ] Code node (calculate hash)
+- [ ] PostgreSQL node (check duplicate)
+- [ ] OpenAI node (GPT-4o Vision)
+- [ ] Code node (parse response)
+- [ ] Code node (compare amounts)
+- [ ] PostgreSQL nodes (save results)
+- [ ] Тестирование с реальными чеками
+
+**День 3: Manager Notifications**
+- [ ] Workflow для уведомлений
+- [ ] Формирование сообщения
+- [ ] Telegram node (send to channel)
+- [ ] Inline keyboard с кнопками
+- [ ] Тестирование
+
+**День 4: Manager Actions**
+- [ ] Workflow для действий
+- [ ] Telegram Trigger (callback query)
+- [ ] IF nodes (confirm/cancel)
+- [ ] PostgreSQL updates
+- [ ] Уведомления пользователю
+- [ ] Обновление сообщения в канале
+- [ ] Тестирование
+
+### Этап 6: Интеграция и тестирование (4-5 дней)
+
+**День 1-2: Сквозное тестирование**
+- [ ] Тест: Регистрация → Меню → Заказ → Чек → Подтверждение
+- [ ] Тест: Повторный заказ
+- [ ] Тест: Смена точки
+- [ ] Тест: Админ-функции
+- [ ] Тест: Обработка ошибок
+- [ ] Тест: Дубликат чека
+
+**День 3: Нагрузочное тестирование**
+- [ ] 100 одновременных пользователей
+- [ ] 1000 заказов в день (симуляция)
+- [ ] Проверка производительности БД
+- [ ] Проверка лимитов API
+
+**День 4: Безопасность**
+- [ ] Пентест API endpoints
+- [ ] Проверка SQL injection
+- [ ] Проверка XSS
+- [ ] Проверка валидации файлов
+- [ ] Проверка rate limiting
+
+**День 5: Исправление багов**
+- [ ] Фиксы критичных багов
+- [ ] Оптимизация запросов
+- [ ] Улучшение обработки ошибок
+
+### Этап 7: Подготовка к запуску (2-3 дня)
+
+**День 1: Документация**
+- [ ] README для разработчиков
+- [ ] Инструкция по деплою
+- [ ] Инструкция для админов
+- [ ] API документация (Swagger)
+- [ ] Инструкция по бэкапам
+
+**День 2: Деплой в production**
+- [ ] Deploy на VPS
+- [ ] Настройка окружения
+- [ ] Загрузка начальных данных
+- [ ] Создание админов
+- [ ] Настройка мониторинга
+- [ ] Проверка всех сервисов
+
+**День 3: Обучение и запуск**
+- [ ] Обучение администраторов
+- [ ] Обучение менеджеров
+- [ ] Soft launch (ограниченная аудитория)
+- [ ] Мониторинг первых заказов
+- [ ] Сбор обратной связи
+
+### Этап 8: Мониторинг и поддержка (ongoing)
+
+**Первая неделя после запуска:**
+- [ ] Ежедневный мониторинг метрик
+- [ ] Анализ логов
+- [ ] Сбор обратной связи
+- [ ] Hotfix критичных проблем
+- [ ] Оптимизация узких мест
+
+**Дальнейшая поддержка:**
+- [ ] Еженедельные обновления
+- [ ] Ежемесячная аналитика
+- [ ] Планирование новых функций
+
+---
+
+## 11. ЧЕКЛИСТ ЗАДАЧ
+
+### 11.1. Backend Developer
+
+#### Инфраструктура
+- [ ] Настроить FastAPI проект
+- [ ] Настроить SQLAlchemy с async поддержкой
+- [ ] Создать Alembic миграции
+- [ ] Настроить логирование (structlog)
+- [ ] Настроить Sentry для мониторинга ошибок
+- [ ] Написать Dockerfile
+- [ ] Настроить CI/CD (опционально)
+
+#### База данных
+- [ ] Создать модели: User, City, Location
+- [ ] Создать модели: Category, Product, ProductOption, LocationProduct
+- [ ] Создать модели: Order, OrderItem, ReceiptsHash
+- [ ] Написать миграции для всех таблиц
+- [ ] Создать индексы
+- [ ] Написать triggers для updated_at
+- [ ] Загрузить начальные данные (города, тестовые точки)
+
+#### API Endpoints - Auth
+- [ ] POST /api/v1/auth/register
+- [ ] POST /api/v1/auth/login
+- [ ] POST /api/v1/auth/validate-webapp
+- [ ] Middleware для JWT валидации
+- [ ] Middleware для Telegram initData валидации
+
+#### API Endpoints - Menu
+- [ ] GET /api/v1/menu/cities
+- [ ] GET /api/v1/menu/locations
+- [ ] GET /api/v1/menu/categories
+- [ ] GET /api/v1/menu/products
+- [ ] GET /api/v1/menu/products/{id}
+
+#### API Endpoints - Orders
+- [ ] POST /api/v1/orders/calculate
+- [ ] POST /api/v1/orders/create
+- [ ] POST /api/v1/orders/{id}/upload-receipt
+- [ ] GET /api/v1/orders/{id}/status
+- [ ] GET /api/v1/orders/my-orders
+- [ ] POST /api/v1/orders/{id}/repeat
+
+#### API Endpoints - Admin
+- [ ] POST /api/v1/admin/menu/upload-excel
+- [ ] GET /api/v1/admin/orders
+- [ ] POST /api/v1/admin/orders/{id}/confirm
+- [ ] POST /api/v1/admin/orders/{id}/cancel
+- [ ] GET /api/v1/admin/stats
+- [ ] Middleware для проверки прав админа
+
+#### API Endpoints - Webhooks
+- [ ] POST /api/v1/webhooks/telegram
+- [ ] POST /api/v1/webhooks/n8n
+
+#### Сервисы
+- [ ] OrderService (создание, расчет, статусы)
+- [ ] MenuService (получение меню по точке)
+- [ ] CodeGenerator (генерация уникальных кодов)
+- [ ] QRService (генерация QR-кодов)
+- [ ] ExcelParser (парсинг Excel меню)
+- [ ] ImageService (загрузка, валидация, хеширование)
+- [ ] N8NClient (триггер workflows)
+
+#### Безопасность
+- [ ] Реализовать rate limiting
+- [ ] Валидация входных данных (Pydantic)
+- [ ] Валидация загружаемых файлов
+- [ ] Защита от SQL injection
+- [ ] CORS настройки
+- [ ] Хеширование паролей (если будут)
+- [ ] Secure headers в ответах
+
+#### Тестирование
+- [ ] Тесты для auth endpoints
+- [ ] Тесты для menu endpoints
+- [ ] Тесты для orders endpoints
+- [ ] Тесты для admin endpoints
+- [ ] Интеграционные тесты
+- [ ] Coverage > 80%
+
+### 11.2. Bot Developer
+
+#### Основа
+- [ ] Настроить aiogram 3.x проект
+- [ ] Создать структуру handlers (user/admin)
+- [ ] Настроить роутеры
+- [ ] Создать Middleware: AuthMiddleware
+- [ ] Создать Middleware: AdminMiddleware
+- [ ] Создать Middleware: ThrottlingMiddleware
+- [ ] Настроить логирование
+- [ ] Написать Dockerfile
+
+#### User Handlers
+- [ ] /start - приветствие и проверка регистрации
+- [ ] FSM для регистрации (phone, full_name, city)
+- [ ] Главное меню с кнопкой WebApp
+- [ ] История заказов
+- [ ] Прием фото чека
+- [ ] /help - помощь
+- [ ] Обработка уведомлений о статусе заказа
+
+#### Admin Handlers
+- [ ] Админ меню
+- [ ] Загрузка Excel с меню
+- [ ] Список городов/точек
+- [ ] Добавление/редактирование точки
+- [ ] Просмотр заказов с фильтрами
+- [ ] Подтверждение/отмена заказа (дубль канала)
+- [ ] Статистика (заказы, выручка, популярные товары)
+
+#### Keyboards
+- [ ] Главное меню пользователя
+- [ ] WebApp кнопка
+- [ ] Меню регистрации
+- [ ] Админ меню
+- [ ] Inline клавиатуры для админа
+
+#### Интеграция
+- [ ] HTTP клиент для Backend API
+- [ ] Отправка в менеджерский канал
+- [ ] Обработка callback от кнопок в канале
+- [ ] Обработка ошибок API
+
+#### Тестирование
+- [ ] Тесты для основных handler-ов
+- [ ] Интеграционные тесты с mock API
+- [ ] Тестирование FSM
+
+### 11.3. Frontend Developer (WebApp)
+
+#### Базовая структура
+- [ ] Создать HTML шаблоны (index, cart, history, order)
+- [ ] Создать CSS стили (адаптивные)
+- [ ] Интегрировать Telegram WebApp SDK
+- [ ] Создать wrapper для SDK (tg.js)
+- [ ] Настроить навигацию между страницами
+
+#### API клиент
+- [ ] Создать APIClient класс
+- [ ] Методы для auth
+- [ ] Методы для menu
+- [ ] Методы для orders
+- [ ] Обработка ошибок
+- [ ] Loader-ы во время запросов
+
+#### Выбор точки
+- [ ] Страница выбора города
+- [ ] Страница выбора точки выдачи
+- [ ] Сохранение выбора в localStorage
+- [ ] Возможность сменить точку
+- [ ] Предупреждение при смене с товарами в корзине
+
+#### Каталог
+- [ ] Отображение категорий
+- [ ] Отображение товаров категории
+- [ ] Карточка товара с изображением
+- [ ] Модальное окно товара с опциями
+- [ ] Добавление в корзину
+- [ ] Анимации
+
+#### Корзина
+- [ ] Класс Cart для управления (cart.js)
+- [ ] Добавление/удаление товаров
+- [ ] Изменение количества
+- [ ] Отображение опций товара
+- [ ] Расчет итоговой суммы
+- [ ] Badge с количеством товаров
+- [ ] Очистка корзины
+
+#### Оформление заказа
+- [ ] Форма подтверждения
+- [ ] Отправка заказа на backend
+- [ ] Отображение кода заказа
+- [ ] Отображение QR-кода
+- [ ] Инструкции по оплате и загрузке чека
+- [ ] Сообщение об успехе
+
+#### История заказов
+- [ ] Список заказов пользователя
+- [ ] Детали заказа
+- [ ] Статус заказа с иконками
+- [ ] Кнопка "Повторить заказ"
+- [ ] Пагинация или infinite scroll
+
+#### UX/UI
+- [ ] Адаптивная верстка (mobile first)
+- [ ] Loader-ы
+- [ ] Анимации переходов
+- [ ] Обработка ошибок (toast/alert)
+- [ ] Empty states (пустая корзина, нет заказов)
+- [ ] Skeleton screens
+
+#### Тестирование
+- [ ] Тестирование на iOS Safari
+- [ ] Тестирование на Android Chrome
+- [ ] Тестирование в Telegram Desktop
+- [ ] Проверка производительности
+- [ ] Проверка доступности
+
+### 11.4. DevOps Engineer
+
+#### Инфраструктура
+- [ ] Настроить VPS (Ubuntu 22.04)
+- [ ] Установить Docker и Docker Compose
+- [ ] Настроить firewall (ufw)
+- [ ] Настроить fail2ban
+- [ ] Создать пользователей и SSH ключи
+- [ ] Отключить root login через SSH
+
+#### Домен и SSL
+- [ ] Настроить DNS записи
+- [ ] Получить SSL сертификат (Let's Encrypt)
+- [ ] Настроить автообновление сертификата
+- [ ] Настроить редирект HTTP → HTTPS
+
+#### Docker Compose
+- [ ] Создать docker-compose.yml
+- [ ] Настроить PostgreSQL сервис
+- [ ] Настроить Redis сервис
+- [ ] Настроить Backend сервис
+- [ ] Настроить Bot сервис
+- [ ] Настроить n8n сервис
+- [ ] Настроить Nginx сервис
+- [ ] Настроить volumes
+- [ ] Настроить networks
+- [ ] Настроить healthchecks
+- [ ] Настроить restart policies
+
+#### Nginx
+- [ ] Создать nginx.conf
+- [ ] Настроить виртуальные хосты
+- [ ] Настроить reverse proxy для API
+- [ ] Настроить раздачу статики (WebApp)
+- [ ] Настроить раздачу uploads
+- [ ] Настроить gzip
+- [ ] Настроить rate limiting
+- [ ] Настроить security headers
+- [ ] Настроить логирование
+
+#### Мониторинг
+- [ ] Настроить Prometheus (опционально)
+- [ ] Настроить Grafana (опционально)
+- [ ] Настроить Loki для логов (опционально)
+- [ ] Настроить алерты
+- [ ] Мониторинг дискового пространства
+- [ ] Мониторинг использования памяти
+- [ ] Мониторинг CPU
+
+#### Backup
+- [ ] Написать скрипт backup.sh
+- [ ] Настроить cron для бэкапов
+- [ ] Тестировать восстановление из бэкапа
+- [ ] Настроить отправку в облако (опционально)
+- [ ] Алерт при ошибке бэкапа
+
+#### Логирование
+- [ ] Централизованное логирование
+- [ ] Ротация логов
+- [ ] Алерты при критичных ошибках
+
+#### CI/CD (опционально)
+- [ ] Настроить GitHub Actions
+- [ ] Автоматические тесты
+- [ ] Автоматический деплой
+- [ ] Rollback стратегия
+
+#### Документация
+- [ ] README по деплою
+- [ ] Инструкция по восстановлению
+- [ ] Runbook для типичных проблем
+- [ ] Документация по мониторингу
+
+### 11.5. n8n Specialist
+
+#### Настройка
+- [ ] Установить и настроить n8n
+- [ ] Подключить к PostgreSQL
+- [ ] Настроить credentials (OpenAI, Telegram, Backend API)
+- [ ] Настроить webhook URL
+
+#### Workflow: Receipt Validation
+- [ ] Создать workflow
+- [ ] Webhook node (триггер)
+- [ ] HTTP Request node (скачать изображение)
+- [ ] Code node (вычислить hash)
+- [ ] PostgreSQL node (проверка дубликата)
+- [ ] IF node (если дубликат)
+- [ ] OpenAI node (GPT-4o Vision)
+- [ ] Code node (парсинг JSON)
+- [ ] Code node (сравнение сумм)
+- [ ] PostgreSQL node (сохранить результат)
+- [ ] PostgreSQL node (сохранить hash)
+- [ ] HTTP Request node (уведомить backend)
+- [ ] Telegram node (отправить в канал)
+- [ ] Telegram node (уведомить пользователя)
+- [ ] Обработка ошибок на каждом шаге
+- [ ] Тестирование с реальными чеками
+
+#### Workflow: Manager Notification
+- [ ] Создать workflow или использовать часть предыдущего
+- [ ] Code node (форматирование сообщения)
+- [ ] Telegram node (отправка с inline кнопками)
+- [ ] Telegram node (отправка QR-кода)
+
+#### Workflow: Manager Actions
+- [ ] Создать workflow
+- [ ] Telegram Trigger (callback query)
+- [ ] Code node (парсинг callback_data)
+- [ ] IF node (confirm vs cancel)
+- [ ] PostgreSQL node (обновить статус)
+- [ ] Telegram node (уведомить пользователя)
+- [ ] Telegram node (обновить сообщение в канале)
+- [ ] Обработка отмены с причиной
+
+#### Экспорт и бэкап
+- [ ] Экспортировать все workflows в JSON
+- [ ] Сохранить в репозиторий
+- [ ] Документировать каждый workflow
+
+### 11.6. QA Engineer
+
+#### Тест-планы
+- [ ] Составить тест-план для регистрации
+- [ ] Составить тест-план для создания заказа
+- [ ] Составить тест-план для валидации чека
+- [ ] Составить тест-план для админ-панели
+
+#### Функциональное тестирование
+- [ ] Регистрация нового пользователя
+- [ ] Повторный вход
+- [ ] Выбор города и точки
+- [ ] Просмотр меню
+- [ ] Добавление товаров в корзину
+- [ ] Оформление заказа
+- [ ] Получение кода
+- [ ] Загрузка чека
+- [ ] Валидация чека (корректный)
+- [ ] Валидация чека (дубликат)
+- [ ] Валидация чека (неверная сумма)
+- [ ] Подтверждение менеджером
+- [ ] Отмена менеджером
+- [ ] История заказов
+- [ ] Повтор заказа
+- [ ] Админ: загрузка меню
+- [ ] Админ: просмотр заказов
+- [ ] Админ: статистика
+
+#### Негативное тестирование
+- [ ] Невалидные данные при регистрации
+- [ ] Загрузка не-изображения как чека
+- [ ] Загрузка слишком большого файла
+- [ ] Попытка заказа недоступного товара
+- [ ] Попытка использовать чужой код заказа
+- [ ] SQL injection попытки
+- [ ] XSS попытки
+- [ ] Превышение rate limit
+
+#### Тестирование интеграций
+- [ ] Backend ↔ PostgreSQL
+- [ ] Backend ↔ n8n
+- [ ] Bot ↔ Backend API
+- [ ] WebApp ↔ Backend API
+- [ ] n8n ↔ OpenAI
+- [ ] n8n ↔ Telegram
+
+#### Нагрузочное тестирование
+- [ ] 100 одновременных пользователей в WebApp
+- [ ] 1000 заказов в день (симуляция)
+- [ ] Массовая загрузка чеков
+- [ ] Проверка времени отклика API
+
+#### Тестирование безопасности
+- [ ] Пентест API endpoints
+- [ ] Проверка JWT валидации
+- [ ] Проверка Telegram initData валидации
+- [ ] Проверка прав доступа (admin vs user)
+- [ ] Проверка rate limiting
+- [ ] Проверка загрузки файлов
+
+#### Регрессионное тестирование
+- [ ] Smoke тесты после каждого деплоя
+- [ ] Полное регрессионное тестирование перед релизом
+
+#### Документация багов
+- [ ] Заводить баги в issue tracker
+- [ ] Приоритизация багов
+- [ ] Верификация фиксов
+
+---
+
+## 12. ПРИЛОЖЕНИЯ
+
+### 12.1. Шаблон Excel для меню
+
+**Лист 1: Товары**
+
+| ID  | Категория | Название    | Описание           | Базовая цена | Фото URL       | Опции (JSON)                                                                     | Сортировка |
+|-----|-----------|-------------|--------------------|--------------|----------------|----------------------------------------------------------------------------------|------------|
+| 1   | Пицца     | Пепперони   | Острая пицца       | 2000         | pizza1.jpg     | {"размер":[{"name":"25см","price":0},{"name":"30см","price":500}],"добавки":[]} | 1          |
+| 2   | Напитки   | Кола        | 0.5л               | 500          | cola.jpg       | {}                                                                               | 1          |
+| 3   | Пицца     | Маргарита   | Классическая пицца | 1800         | pizza2.jpg     | {"размер":[{"name":"25см","price":0},{"name":"30см","price":500}]}              | 2          |
+| 4   | Десерты   | Чизкейк     | Нью-Йорк           | 800          | cheesecake.jpg | {}                                                                               | 1          |
+
+**Лист 2: Привязка к точкам**
+
+| ID товара | Название точки   | Переопределить цену | Доступен | Остаток |
+|-----------|------------------|---------------------|----------|---------|
+| 1         | Алматы, Абай 150 | 2500                | Да       | 50      |
+| 1         | Астана, Центр    | 2800                | Да       | 30      |
+| 2         | Алматы, Абай 150 |                     | Да       | 100     |
+| 3         | Алматы, Абай 150 | 1900                | Да       | 40      |
+| 4         | Астана, Центр    |                     | Нет      | 0       |
+
+**Примечания:**
+- Если "Переопределить цену" пусто → используется базовая цена
+- Если "Остаток" пусто → не отслеживается
+- Опции в формате JSON: `{"тип_опции": [{"name": "значение", "price": модификатор}]}`
+
+### 12.2. Переменные окружения
+
+```bash
+# ==============================================
+# DATABASE
+# ==============================================
+DB_USER=pizzamat
+DB_PASSWORD=CHANGE_ME_STRONG_PASSWORD
+DB_NAME=pizzamatif
+DATABASE_URL=postgresql+asyncpg://${DB_USER}:${DB_PASSWORD}@postgres:5432/${DB_NAME}
+
+# ==============================================
+# REDIS
+# ==============================================
+REDIS_PASSWORD=CHANGE_ME_REDIS_PASSWORD
+REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379/0
+
+# ==============================================
+# TELEGRAM
+# ==============================================
+BOT_TOKEN=1234567890:ABCdefGHIjklMNOpqrSTUvwxYZ
+TELEGRAM_WEBHOOK_SECRET=CHANGE_ME_32_CHARS_MIN_SECRET
+MANAGER_CHANNEL_ID=-1001234567890
+ADMIN_IDS=123456789,987654321
+
+# ==============================================
+# JWT
+# ==============================================
+JWT_SECRET=CHANGE_ME_JWT_SECRET_32_CHARS_MIN
+JWT_ALGORITHM=HS256
+ACCESS_TOKEN_EXPIRE_HOURS=24
+
+# ==============================================
+# OPENAI
+# ==============================================
+OPENAI_API_KEY=sk-...
+
+# ==============================================
+# N8N
+# ==============================================
+N8N_USER=admin
+N8N_PASSWORD=CHANGE_ME_N8N_PASSWORD
+N8N_HOST=n8n.yourdomain.com
+N8N_URL=http://n8n:5678
+N8N_WEBHOOK_URL=https://yourdomain.com/webhook
+N8N_WEBHOOK_SECRET=CHANGE_ME_N8N_SECRET
+
+# ==============================================
+# APPLICATION
+# ==============================================
+DEBUG=false
+WEBAPP_URL=https://yourdomain.com/webapp
+ALLOWED_ORIGINS=["https://web.telegram.org","https://yourdomain.com"]
+
+# ==============================================
+# MONITORING (optional)
+# ==============================================
+SENTRY_DSN=
+GRAFANA_PASSWORD=CHANGE_ME_GRAFANA_PASSWORD
+```
+
+### 12.3. Полезные команды
+
+```bash
+# Docker Compose
+docker-compose up -d                    # Запуск всех сервисов
+docker-compose down                     # Остановка всех сервисов
+docker-compose logs -f backend          # Просмотр логов backend
+docker-compose ps                       # Статус сервисов
+docker-compose restart bot              # Перезапуск бота
+docker-compose exec postgres psql -U pizzamat  # Подключение к PostgreSQL
+
+# Database
+docker-compose exec backend alembic upgrade head     # Применить миграции
+docker-compose exec backend alembic revision --autogenerate -m "message"  # Создать миграцию
+docker-compose exec postgres pg_dump -U pizzamat pizzamatif > backup.sql  # Бэкап
+
+# Logs
+docker-compose logs -f --tail=100       # Все логи (последние 100 строк)
+tail -f ./logs/backend/app.log          # Логи backend
+tail -f ./logs/nginx/access.log         # Nginx access log
+
+# Telegram
+curl -X POST https://api.telegram.org/bot${BOT_TOKEN}/setWebhook \
+  -H "Content-Type: application/json" \
+  -d '{"url":"https://yourdomain.com/api/v1/webhooks/telegram"}'
+
+curl https://api.telegram.org/bot${BOT_TOKEN}/getWebhookInfo  # Проверка webhook
+
+# SSL
+certbot renew --dry-run                 # Тест обновления сертификата
+certbot certificates                    # Список сертификатов
+
+# System
+df -h                                   # Свободное место
+free -h                                 # Использование памяти
+htop                                    # Мониторинг процессов
+```
+
+---
+
+## ЗАКЛЮЧЕНИЕ
+
+Этот технический документ содержит всю необходимую информацию для успешной реализации MVP проекта PizzaMatIF. Документ включает:
+
+1. ✅ **Полное описание задачи** с бизнес-целями
+2. ✅ **Результаты обсуждения** всех технических решений
+3. ✅ **Детальную архитектуру** системы
+4. ✅ **Полную схему базы данных** с SQL кодом
+5. ✅ **Спецификацию API** с примерами запросов/ответов
+6. ✅ **Описание всех компонентов** со структурой и примерами кода
+7. ✅ **Интеграции** (OpenAI, Telegram, n8n)
+8. ✅ **Требования безопасности**
+9. ✅ **DevOps конфигурации** (Docker, Nginx, мониторинг)
+10. ✅ **Детальный план разработки** с временными оценками
+11. ✅ **Чеклисты задач** для каждой роли
+
+Документ готов к передаче в Claude Code или разработчикам для начала реализации.
+
+**Следующие шаги:**
+1. Настройка инфраструктуры (VPS, Docker, домен)
+2. Разработка компонентов параллельно разными специалистами
+3. Интеграция и тестирование
+4. Деплой и запуск
+
+**Важно:** Все пароли, токены и секреты в документе являются примерами и должны быть заменены на реальные безопасные значения при деплое.
+
+**Контакты для вопросов:** _[указать контакты ответственных лиц]_
+
+---
+
+**Версия:** 1.0  
+**Дата:** 25 октября 2024  
+**Статус:** ✅ Готово к разработке
