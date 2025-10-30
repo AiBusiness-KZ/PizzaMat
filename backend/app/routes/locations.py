@@ -9,7 +9,7 @@ from ..schemas.location import LocationResponse
 router = APIRouter(prefix="", tags=["locations"])
 
 
-@router.get("/pickup-locations", response_model=dict)
+@router.get("/pickup-locations", response_model=list[LocationResponse])
 async def get_pickup_locations(db: AsyncSession = Depends(get_db)):
     """Get all active pickup locations"""
     result = await db.execute(
