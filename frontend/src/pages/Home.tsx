@@ -80,7 +80,7 @@ export default function Home() {
     }
   };
 
-  const handleCheckout = () => {
+  const handleCheckout = async () => {
     console.log('Checkout attempt:', {
       selectedCity,
       selectedLocation,
@@ -103,8 +103,76 @@ export default function Home() {
       return;
     }
     
+    try {
+      // Get telegram_id from Telegram WebApp or URL params
+      let telegramId: number | null = null;
+      
+      if (window.Telegram?.WebApp?.initDataUnsafe?.user?.id) {
+        telegramId = window.Telegram.WebApp.initDataUnsafe.user.id;
+      } else {
+        // Fallback: get from URL params
+        const urlParams = new URLSearchParams(window.location.search);
+        const tgId = urlParams.get('telegram_id');
+        if (tgId) {
+          telegramId = parseInt(tgId);
+        }
+      }
+      
+      if (!telegramId) {
+        alert('Не удалось получить telegram_id. Пожалуйста, откройте через бота.');
+        return;
+      }
+      
+      // Prepare order data
+      const orderData = {
+        telegram_id: telegramId,
+        location_id: parseInt(selectedLocation),
+        total_amount: totalAmount,
+        items: items.map(item => ({
+          product_id: item.product.id,
+          quantity: item.quantity,
+          unit_price: item.product.base_price,
+          selected_options: item.selectedOptions.length > 0 ? {
+            options: item.selectedOptions
+          } : null,
+          options_price: item.selectedOptions.reduce((sum, opt) => sum + opt.price_modifier, 0),
+          total_price: item.totalPrice
+        }))
+      };
+      
+      console.log('Creating order:', orderData);
+      
+      // Create order
+      const response = await fetch('/api/orders/create', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(orderData)
+      });
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        // Clear cart
+        items.forEach(item => removeFromCart(item.id));
+        
+        // Show success message
+        alert(`${result.message}\n\nКод заказа: ${result.order.order_code}`);
+        
+        // Close WebApp and return to bot
+        if (window.Telegram?.WebApp) {
+          window.Telegram.WebApp.close();
+        }
+      } else {
+        alert('Ошибка при создании заказа. Попробуйте еще раз.');
+      }
+    } catch (error) {
+      console.error('Error creating order:', error);
+      alert('Ошибка при создании заказа. Попробуйте еще раз.');
+    }
+    
     setIsCartOpen(false);
-    navigate('/checkout', { state: { cartItems: items, selectedLocation } });
   };
 
   // Filter locations by selected city
@@ -152,7 +220,7 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <header className="bg-white shadow-sm sticky top-0 z-40">
+      <header className="bg-white shadow-sm sticky top-0 z-50">
         <div className="max-w-6xl mx-auto px-3 py-3">
           {/* First row: Title and Cart */}
           <div className="flex items-center justify-between mb-3">
@@ -212,7 +280,7 @@ export default function Home() {
 
       {/* Categories filter - only show if categories loaded */}
       {categories.length > 0 && (
-        <div className="bg-white border-b">
+        <div className="bg-white border-b sticky top-[88px] z-40">
           <div className="max-w-6xl mx-auto px-3">
             <div className="flex space-x-1 overflow-x-auto py-2 scrollbar-hide">
               <button

@@ -14,6 +14,11 @@ interface TelegramWebApp {
   expand: () => void;
   
   /**
+   * A method that closes the Web App
+   */
+  close: () => void;
+  
+  /**
    * A string with raw data transferred to the Web App, convenient for validating data
    */
   initData: string;

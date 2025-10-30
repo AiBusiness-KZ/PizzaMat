@@ -70,6 +70,22 @@ class SupportMessageRequest(BaseModel):
     thread_id: Optional[str] = None
 
 
+class OrderItemRequest(BaseModel):
+    product_id: int
+    quantity: int
+    unit_price: float
+    selected_options: Optional[dict] = None
+    options_price: float = 0
+    total_price: float
+
+
+class CreateOrderRequest(BaseModel):
+    telegram_id: int
+    location_id: int
+    items: List[OrderItemRequest]
+    total_amount: float
+
+
 # ==================== User Endpoints ====================
 
 @router.get("/users/{telegram_id}")
@@ -151,6 +167,69 @@ async def get_cities(db: AsyncSession = Depends(get_db)):
 
 
 # ==================== Order Endpoints ====================
+
+@router.post("/orders/create")
+async def create_order(request: CreateOrderRequest, db: AsyncSession = Depends(get_db)):
+    """Create new order from WebApp"""
+    import random
+    import string
+    
+    # Get user by telegram_id
+    user_query = select(User).where(User.telegram_id == request.telegram_id)
+    user_result = await db.execute(user_query)
+    user = user_result.scalar_one_or_none()
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Generate unique 6-digit order code
+    while True:
+        order_code = ''.join(random.choices(string.digits, k=6))
+        existing = await db.execute(select(Order).where(Order.order_code == order_code))
+        if not existing.scalar_one_or_none():
+            break
+    
+    # Create order
+    order = Order(
+        user_id=user.id,
+        location_id=request.location_id,
+        order_code=order_code,
+        total_amount=request.total_amount,
+        status=OrderStatus.PENDING
+    )
+    
+    db.add(order)
+    await db.flush()  # Get order.id
+    
+    # Create order items
+    from app.models.order import OrderItem
+    for item in request.items:
+        order_item = OrderItem(
+            order_id=order.id,
+            product_id=item.product_id,
+            quantity=item.quantity,
+            unit_price=item.unit_price,
+            selected_options=item.selected_options,
+            options_price=item.options_price,
+            total_price=item.total_price
+        )
+        db.add(order_item)
+    
+    await db.commit()
+    await db.refresh(order)
+    
+    return {
+        "success": True,
+        "order": {
+            "id": order.id,
+            "order_code": order_code,
+            "status": order.status.value,
+            "total_amount": float(order.total_amount),
+            "created_at": order.created_at.isoformat()
+        },
+        "message": "Заказ создан. Произведите оплату и пришлите квитанцию об оплате."
+    }
+
 
 @router.get("/orders/user/{telegram_id}")
 async def get_user_orders(
