@@ -44,6 +44,7 @@ export type Product = z.infer<typeof ProductSchema>;
 export const PickupLocationSchema = z.object({
   id: z.number(),
   location_id: z.string(),
+  city_id: z.number(),
   name: z.string(),
   address: z.string(),
   city: z.string(),

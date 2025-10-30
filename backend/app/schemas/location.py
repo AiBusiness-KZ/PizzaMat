@@ -5,6 +5,7 @@ from typing import Optional
 class LocationResponse(BaseModel):
     id: int
     location_id: Optional[str] = None
+    city_id: int
     name: str
     address: str
     city: Optional[str] = None
@@ -28,4 +29,3 @@ class LocationResponse(BaseModel):
     
     class Config:
         from_attributes = True
-        

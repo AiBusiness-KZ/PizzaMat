@@ -8,7 +8,7 @@ from ..schemas.location import LocationResponse
 
 router = APIRouter(prefix="", tags=["locations"])
 
-@router.get("/pickup-locations", response_model=list[LocationResponse])
+@router.get("/pickup-locations")
 async def get_pickup_locations(db: AsyncSession = Depends(get_db)):
     """Get all active pickup locations"""
     result = await db.execute(
@@ -19,5 +19,7 @@ async def get_pickup_locations(db: AsyncSession = Depends(get_db)):
     )
     locations = result.scalars().unique().all()  # ← ИСПРАВЛЕНИЕ: unique() для joinedload
     
-    return [LocationResponse.from_orm(loc) for loc in locations]
-    
+    return {
+        "success": True,
+        "data": [LocationResponse.from_orm(loc).dict() for loc in locations]
+    }

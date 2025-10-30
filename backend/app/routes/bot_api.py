@@ -137,14 +137,17 @@ async def get_cities(db: AsyncSession = Depends(get_db)):
     result = await db.execute(query)
     cities = result.scalars().all()
 
-    return [
-        {
-            "id": city.id,
-            "name": city.name,
-            "is_active": city.is_active
-        }
-        for city in cities
-    ]
+    return {
+        "success": True,
+        "data": [
+            {
+                "id": city.id,
+                "name": city.name,
+                "is_active": city.is_active
+            }
+            for city in cities
+        ]
+    }
 
 
 # ==================== Order Endpoints ====================

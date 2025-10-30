@@ -8,11 +8,19 @@ import CartSidebar from '@/components/CartSidebar';
 import LanguageSwitch from '@/components/LanguageSwitch';
 import { useNavigate } from 'react-router';
 
+interface City {
+  id: number;
+  name: string;
+  is_active: boolean;
+}
+
 export default function Home() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
+  const [cities, setCities] = useState<City[]>([]);
   const [pickupLocations, setPickupLocations] = useState<PickupLocation[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<number | 'all'>('all');
+  const [selectedCity, setSelectedCity] = useState<number | null>(null);
   const [selectedLocation, setSelectedLocation] = useState<string>('');
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -34,25 +42,31 @@ export default function Home() {
 
   const loadData = async () => {
     try {
-      const [categoriesRes, productsRes, locationsRes] = await Promise.all([
+      const [categoriesRes, productsRes, citiesRes, locationsRes] = await Promise.all([
         fetch('/api/categories'),
         fetch('/api/products'),
+        fetch('/api/cities'),
         fetch('/api/pickup-locations'),
       ]);
 
-      const [categoriesData, productsData, locationsData] = await Promise.all([
+      const [categoriesData, productsData, citiesData, locationsData] = await Promise.all([
         categoriesRes.json(),
         productsRes.json(),
+        citiesRes.json(),
         locationsRes.json(),
       ]);
 
       if (categoriesData.success) setCategories(categoriesData.data);
       if (productsData.success) setProducts(productsData.data);
+      if (citiesData.success) {
+        setCities(citiesData.data);
+        // Auto-select first city if available
+        if (citiesData.data.length > 0) {
+          setSelectedCity(citiesData.data[0].id);
+        }
+      }
       if (locationsData.success) {
         setPickupLocations(locationsData.data);
-        if (locationsData.data.length > 0) {
-          setSelectedLocation(locationsData.data[0].location_id);
-        }
       }
     } catch (error) {
       console.error('Error loading data:', error);
@@ -73,6 +87,18 @@ export default function Home() {
     setIsCartOpen(false);
     navigate('/checkout', { state: { cartItems: items, selectedLocation } });
   };
+
+  // Filter locations by selected city
+  const filteredLocations = selectedCity
+    ? pickupLocations.filter(loc => loc.city_id === selectedCity)
+    : pickupLocations;
+
+  // Auto-select first location when city changes
+  useEffect(() => {
+    if (filteredLocations.length > 0 && !filteredLocations.find(loc => loc.location_id === selectedLocation)) {
+      setSelectedLocation(filteredLocations[0].location_id);
+    }
+  }, [selectedCity, filteredLocations, selectedLocation]);
 
   const filteredProducts = selectedCategory === 'all' 
     ? products 
@@ -102,17 +128,31 @@ export default function Home() {
               <div className="flex items-center space-x-2">
                 <MapPin className="w-4 h-4 text-gray-500" />
                 <select
-                  value={selectedLocation}
-                  onChange={(e) => setSelectedLocation(e.target.value)}
+                  value={selectedCity || ''}
+                  onChange={(e) => setSelectedCity(Number(e.target.value))}
                   className="text-sm border border-gray-300 rounded-lg px-2 py-1 focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                 >
-                  <option value="">{t('location.placeholder')}</option>
-                  {pickupLocations.map(location => (
-                    <option key={location.location_id} value={location.location_id}>
-                      {location.city} - {location.name}
+                  <option value="">{t('location.selectCity') || 'Выберите город'}</option>
+                  {cities.map(city => (
+                    <option key={city.id} value={city.id}>
+                      {city.name}
                     </option>
                   ))}
                 </select>
+                {selectedCity && (
+                  <select
+                    value={selectedLocation}
+                    onChange={(e) => setSelectedLocation(e.target.value)}
+                    className="text-sm border border-gray-300 rounded-lg px-2 py-1 focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                  >
+                    <option value="">{t('location.placeholder')}</option>
+                    {filteredLocations.map(location => (
+                      <option key={location.location_id} value={location.location_id}>
+                        {location.name}
+                      </option>
+                    ))}
+                  </select>
+                )}
               </div>
               
               <button
@@ -162,7 +202,15 @@ export default function Home() {
       </div>
 
       <main className="max-w-6xl mx-auto px-4 py-6">
-        {!selectedLocation && (
+        {!selectedCity && (
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+            <p className="text-yellow-800 font-medium">
+              {t('messages.cityWarning') || 'Пожалуйста, выберите город'}
+            </p>
+          </div>
+        )}
+        
+        {selectedCity && !selectedLocation && (
           <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
             <p className="text-yellow-800 font-medium">
               {t('messages.locationWarning')}

@@ -11,7 +11,7 @@ from ..schemas.product import ProductResponse
 router = APIRouter(prefix="", tags=["menu"])
 
 
-@router.get("/categories", response_model=list[CategoryResponse])
+@router.get("/categories")
 async def get_categories(db: AsyncSession = Depends(get_db)):
     """Get all active categories"""
     result = await db.execute(
@@ -21,10 +21,13 @@ async def get_categories(db: AsyncSession = Depends(get_db)):
     )
     categories = result.scalars().all()
     
-    return [CategoryResponse.from_orm(cat) for cat in categories]
+    return {
+        "success": True,
+        "data": [CategoryResponse.from_orm(cat).dict() for cat in categories]
+    }
 
 
-@router.get("/products", response_model=list[ProductResponse])
+@router.get("/products")
 async def get_products(db: AsyncSession = Depends(get_db)):
     """Get all available products"""
     result = await db.execute(
@@ -79,4 +82,7 @@ async def get_products(db: AsyncSession = Depends(get_db)):
             "updated_at": prod_updated,
         })
     
-    return products_data
+    return {
+        "success": True,
+        "data": products_data
+    }

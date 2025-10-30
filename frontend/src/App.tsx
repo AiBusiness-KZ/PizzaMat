@@ -3,6 +3,7 @@ import { RefineThemes, ThemedLayoutV2, notificationProvider } from "@refinedev/a
 import routerProvider, { NavigateToResource } from "@refinedev/react-router-v6";
 import { BrowserRouter, Routes, Route, Outlet } from "react-router-dom";
 import { ConfigProvider, App as AntdApp } from "antd";
+import { useEffect } from "react";
 import { 
   AppstoreOutlined, 
   ShoppingCartOutlined, 
@@ -33,6 +34,34 @@ import { CityEdit } from "./pages/admin/cities/edit";
 import { SettingsEdit } from "./pages/admin/settings/edit";
 
 export default function App() {
+  // Initialize Telegram WebApp
+  useEffect(() => {
+    if (window.Telegram?.WebApp) {
+      const tg = window.Telegram.WebApp;
+      
+      // Inform Telegram that the Web App is ready
+      tg.ready();
+      
+      // Expand to maximum height
+      tg.expand();
+      
+      // Get initData for authorization (if needed)
+      const initData = tg.initData;
+      if (initData) {
+        // Store in localStorage for API requests
+        localStorage.setItem('tg_init_data', initData);
+      }
+      
+      console.log('Telegram WebApp initialized', {
+        isExpanded: tg.isExpanded,
+        colorScheme: tg.colorScheme,
+        viewportHeight: tg.viewportHeight,
+      });
+    } else {
+      console.log('Running outside Telegram WebApp');
+    }
+  }, []);
+
   return (
     <BrowserRouter>
       <LanguageProvider>
