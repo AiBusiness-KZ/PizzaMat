@@ -28,7 +28,7 @@ FROM nginx:alpine
 # Copy built files to nginx
 COPY --from=builder /app/dist /usr/share/nginx/html
 
-# Create nginx configuration with API proxy
+# Create nginx configuration with INTERNAL Docker proxy
 RUN cat > /etc/nginx/conf.d/default.conf <<'EOF'
 server {
     listen 80;
@@ -51,9 +51,9 @@ server {
     gzip_min_length 1024;
     gzip_types text/plain text/css text/xml text/javascript application/x-javascript application/javascript application/xml+rss application/json;
     
-    # Proxy API requests to backend - КРИТИЧНО: сохраняем /api в пути!
+    # Proxy API requests to INTERNAL backend - используем имя Docker сервиса!
     location /api/ {
-        proxy_pass https://api.pizzamat.aibusiness.kz/api/;
+        proxy_pass http://backend:8000/api/;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection 'upgrade';
@@ -62,6 +62,11 @@ server {
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
         proxy_cache_bypass $http_upgrade;
+        
+        # Таймауты для медленных запросов
+        proxy_connect_timeout 60s;
+        proxy_send_timeout 60s;
+        proxy_read_timeout 60s;
     }
     
     # SPA routing - all routes go to index.html
