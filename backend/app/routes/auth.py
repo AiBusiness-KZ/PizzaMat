@@ -11,7 +11,7 @@ from app.core.security import create_access_token, get_password_hash, verify_pas
 from app.core.rate_limit import rate_limit_dependency
 from app.config import settings
 
-router = APIRouter(prefix="/api/auth", tags=["authentication"])
+router = APIRouter(prefix="/auth", tags=["authentication"])
 
 
 class LoginRequest(BaseModel):

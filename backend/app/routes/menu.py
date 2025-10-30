@@ -21,10 +21,7 @@ async def get_categories(db: AsyncSession = Depends(get_db)):
     )
     categories = result.scalars().all()
     
-    return {
-        "success": True,
-        "data": [CategoryResponse.from_orm(cat) for cat in categories]
-    }
+    return [CategoryResponse.from_orm(cat) for cat in categories]
 
 
 @router.get("/products", response_model=dict)

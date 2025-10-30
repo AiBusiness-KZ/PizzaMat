@@ -21,7 +21,7 @@ from app.core.dependencies import get_admin_user
 from app.core.file_validation import validate_upload_image, FileValidator
 
 router = APIRouter(
-    prefix="/api/admin", 
+    prefix="/admin", 
     tags=["admin"],
     # Авторизация временно отключена до реализации auth системы
     # dependencies=[Depends(get_admin_user)]
@@ -35,20 +35,17 @@ async def get_categories_admin(db: AsyncSession = Depends(get_db)):
     """Get all categories (including inactive)"""
     result = await db.execute(select(Category).order_by(Category.sort_order))
     categories = result.scalars().all()
-    return {
-        "success": True,
-        "data": [
-            {
-                "id": c.id,
-                "name": c.name,
-                "description": c.description,
-                "sort_order": c.sort_order,
-                "is_active": c.is_active,
-                "created_at": c.created_at.isoformat(),
-            }
-            for c in categories
-        ]
-    }
+    return [
+        {
+            "id": c.id,
+            "name": c.name,
+            "description": c.description,
+            "sort_order": c.sort_order,
+            "is_active": c.is_active,
+            "created_at": c.created_at.isoformat(),
+        }
+        for c in categories
+    ]
 
 
 @router.post("/categories")
@@ -69,7 +66,7 @@ async def create_category(
     db.add(category)
     await db.commit()
     await db.refresh(category)
-    return {"success": True, "data": {"id": category.id, "name": category.name}}
+    return {"id": category.id, "name": category.name}
 
 
 @router.put("/categories/{category_id}")
@@ -119,23 +116,20 @@ async def get_products_admin(db: AsyncSession = Depends(get_db)):
     )
     products = result.scalars().all()
     
-    return {
-        "success": True,
-        "data": [
-            {
-                "id": p.id,
-                "category_id": p.category_id,
-                "name": p.name,
-                "description": p.description,
-                "base_price": float(p.base_price),
-                "image_url": p.image_url,
-                "is_active": p.is_active,
-                "sort_order": p.sort_order,
-                "created_at": p.created_at.isoformat(),
-            }
-            for p in products
-        ]
-    }
+    return [
+        {
+            "id": p.id,
+            "category_id": p.category_id,
+            "name": p.name,
+            "description": p.description,
+            "base_price": float(p.base_price),
+            "image_url": p.image_url,
+            "is_active": p.is_active,
+            "sort_order": p.sort_order,
+            "created_at": p.created_at.isoformat(),
+        }
+        for p in products
+    ]
 
 
 @router.post("/products")
@@ -183,7 +177,7 @@ async def create_product(
     await db.commit()
     await db.refresh(product)
     
-    return {"success": True, "data": {"id": product.id, "name": product.name}}
+    return {"id": product.id, "name": product.name}
 
 
 @router.put("/products/{product_id}")
@@ -259,9 +253,7 @@ async def get_locations_admin(db: AsyncSession = Depends(get_db)):
     )
     locations = result.all()
     
-    return {
-        "success": True,
-        "data": [
+    return [
             {
                 "id": loc.id,
                 "city_id": loc.city_id,
@@ -273,7 +265,6 @@ async def get_locations_admin(db: AsyncSession = Depends(get_db)):
             }
             for loc, city in locations
         ]
-    }
 
 
 @router.post("/locations")
@@ -296,7 +287,7 @@ async def create_location(
     db.add(location)
     await db.commit()
     await db.refresh(location)
-    return {"success": True, "data": {"id": location.id, "name": location.name}}
+    return {"id": location.id, "name": location.name}
 
 
 @router.put("/locations/{location_id}")
@@ -345,10 +336,7 @@ async def get_cities(db: AsyncSession = Depends(get_db)):
     """Get all cities"""
     result = await db.execute(select(City).order_by(City.name))
     cities = result.scalars().all()
-    return {
-        "success": True,
-        "data": [{"id": c.id, "name": c.name, "is_active": c.is_active} for c in cities]
-    }
+    return [{"id": c.id, "name": c.name, "is_active": c.is_active} for c in cities]
 
 
 @router.get("/cities/{city_id}")
@@ -358,10 +346,7 @@ async def get_city(city_id: int, db: AsyncSession = Depends(get_db)):
     city = result.scalar_one_or_none()
     if not city:
         raise HTTPException(status_code=404, detail="City not found")
-    return {
-        "success": True,
-        "data": {"id": city.id, "name": city.name, "is_active": city.is_active}
-    }
+    return {"id": city.id, "name": city.name, "is_active": city.is_active}
 
 
 @router.post("/cities")
@@ -375,7 +360,7 @@ async def create_city(
     db.add(city)
     await db.commit()
     await db.refresh(city)
-    return {"success": True, "data": {"id": city.id, "name": city.name}}
+    return {"id": city.id, "name": city.name}
 
 
 @router.put("/cities/{city_id}")
@@ -427,8 +412,6 @@ async def get_settings(db: AsyncSession = Depends(get_db)):
         await db.refresh(settings_obj)
     
     return {
-        "success": True,
-        "data": {
             "id": settings_obj.id,
             "site_name": settings_obj.site_name,
             "site_logo": settings_obj.site_logo,
@@ -445,7 +428,6 @@ async def get_settings(db: AsyncSession = Depends(get_db)):
             "extra_settings": settings_obj.extra_settings,
             "updated_at": settings_obj.updated_at.isoformat() if settings_obj.updated_at else None,
         }
-    }
 
 
 @router.put("/settings")
@@ -522,9 +504,7 @@ async def get_orders_admin(
     result = await db.execute(query)
     orders = result.scalars().all()
     
-    return {
-        "success": True,
-        "data": [
+    return [
             {
                 "id": o.id,
                 "order_id": o.order_id,
@@ -537,7 +517,6 @@ async def get_orders_admin(
             }
             for o in orders
         ]
-    }
 
 
 @router.put("/orders/{order_id}/status")

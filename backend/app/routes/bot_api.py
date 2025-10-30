@@ -16,7 +16,7 @@ from app.models.location import City
 from app.models.bot_interaction import UserSession, BotInteraction, SupportMessage
 from pydantic import BaseModel
 
-router = APIRouter(prefix="/api", tags=["Bot API"])
+router = APIRouter(prefix="", tags=["Bot API"])
 logger = logging.getLogger(__name__)
 
 

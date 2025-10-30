@@ -19,7 +19,4 @@ async def get_pickup_locations(db: AsyncSession = Depends(get_db)):
     )
     locations = result.scalars().all()
     
-    return {
-        "success": True,
-        "data": [LocationResponse.from_orm(loc) for loc in locations]
-    }
+    return [LocationResponse.from_orm(loc) for loc in locations]

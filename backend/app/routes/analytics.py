@@ -15,7 +15,7 @@ from app.models.user import User
 from app.models.order import Order, OrderStatus
 from app.core.dependencies import get_admin_user
 
-router = APIRouter(prefix="/api/analytics", tags=["Analytics"])
+router = APIRouter(prefix="/analytics", tags=["Analytics"])
 logger = logging.getLogger(__name__)
 
 
