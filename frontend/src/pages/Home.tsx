@@ -220,8 +220,8 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <header className="bg-white shadow-sm sticky top-0 z-50">
-        <div className="max-w-6xl mx-auto px-3 py-3">
+      <header className="bg-white shadow-sm sticky top-0 z-50 pb-0">
+        <div className="max-w-6xl mx-auto px-3 pt-3 pb-3">
           {/* First row: Title and Cart */}
           <div className="flex items-center justify-between mb-3">
             <div className="flex-1 min-w-0">
@@ -280,9 +280,9 @@ export default function Home() {
 
       {/* Categories filter - only show if categories loaded */}
       {categories.length > 0 && (
-        <div className="bg-white border-b">
+        <div className="bg-white border-b sticky top-[112px] z-40 shadow-sm">
           <div className="max-w-6xl mx-auto px-3">
-            <div className="flex space-x-1 overflow-x-auto py-2.5 scrollbar-hide">
+            <div className="flex space-x-1 overflow-x-auto py-3 scrollbar-hide">
               <button
                 onClick={() => setSelectedCategory('all')}
                 className={`px-3 py-1.5 rounded-lg text-sm font-medium whitespace-nowrap transition-colors flex-shrink-0 ${
@@ -311,7 +311,7 @@ export default function Home() {
         </div>
       )}
 
-      <main className="max-w-6xl mx-auto px-3 py-4">
+      <main className="max-w-6xl mx-auto px-3 py-4 mt-4">
         {!selectedCity && (
           <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
             <p className="text-yellow-800 font-medium">
