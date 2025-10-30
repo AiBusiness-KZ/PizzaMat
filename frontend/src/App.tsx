@@ -15,7 +15,9 @@ import "@refinedev/antd/dist/reset.css";
 
 import { LanguageProvider } from "./contexts/LanguageContext";
 import { dataProvider } from "./providers/dataProvider";
+import { authProvider } from "./providers/authProvider";
 import HomePage from "./pages/Home";
+import Login from "./pages/Login";
 
 // Admin pages
 import { Dashboard } from "./pages/admin/dashboard";
@@ -69,6 +71,7 @@ export default function App() {
           <AntdApp>
             <Refine
             dataProvider={dataProvider}
+            authProvider={authProvider}
             routerProvider={routerProvider}
             notificationProvider={notificationProvider}
             resources={[
@@ -135,6 +138,9 @@ export default function App() {
             }}
           >
             <Routes>
+              {/* Login route */}
+              <Route path="/login" element={<Login />} />
+              
               {/* Client route */}
               <Route path="/" element={<HomePage />} />
               

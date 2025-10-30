@@ -114,10 +114,27 @@ export default function Home() {
 
   // Auto-select first location when city changes
   useEffect(() => {
-    if (filteredLocations.length > 0 && !filteredLocations.find(loc => loc.location_id === selectedLocation)) {
-      setSelectedLocation(filteredLocations[0].location_id);
+    console.log('Auto-select location effect:', {
+      filteredLocationsCount: filteredLocations.length,
+      currentSelection: selectedLocation,
+      firstLocation: filteredLocations[0]?.location_id
+    });
+    
+    if (filteredLocations.length > 0) {
+      // Check if current selection is valid for filtered locations
+      const isValidSelection = filteredLocations.some(loc => loc.location_id === selectedLocation);
+      
+      if (!isValidSelection) {
+        // Auto-select first location
+        const firstLocationId = filteredLocations[0].location_id;
+        console.log('Auto-selecting location:', firstLocationId);
+        setSelectedLocation(firstLocationId);
+      }
+    } else {
+      // No locations available, reset selection
+      setSelectedLocation('');
     }
-  }, [selectedCity, filteredLocations, selectedLocation]);
+  }, [selectedCity, filteredLocations]);
 
   const filteredProducts = selectedCategory === 'all' 
     ? products 
