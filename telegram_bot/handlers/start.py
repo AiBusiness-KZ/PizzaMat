@@ -140,7 +140,14 @@ async def process_name(message: Message, state: FSMContext):
     await state.set_state(RegistrationStates.waiting_for_city)
 
     # Get available cities
-    cities = await api_client.get_cities()
+    cities_response = await api_client.get_cities()
+    
+    # Extract cities data from response
+    cities = []
+    if cities_response and isinstance(cities_response, dict):
+        cities = cities_response.get("data", [])
+    elif cities_response and isinstance(cities_response, list):
+        cities = cities_response
 
     if not cities:
         # No cities available, create user without city
