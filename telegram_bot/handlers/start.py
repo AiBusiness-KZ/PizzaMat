@@ -4,7 +4,7 @@ Start command and user registration handlers
 
 from aiogram import Router, F
 from aiogram.filters import Command, StateFilter
-from aiogram.types import Message, CallbackQuery
+from aiogram.types import Message, CallbackQuery, ReplyKeyboardRemove
 from aiogram.fsm.context import FSMContext
 import logging
 
@@ -110,7 +110,7 @@ async def process_phone(message: Message, state: FSMContext):
 
     await message.answer(
         name_texts.get(language, name_texts["uk"]),
-        reply_markup=None  # Remove keyboard
+        reply_markup=ReplyKeyboardRemove()  # Remove keyboard
     )
 
 
