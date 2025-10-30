@@ -28,12 +28,12 @@ export const dataProvider: DataProvider = {
     
     const { data } = await axios.get(url);
     
-    // Backend returns: { success: true, data: [...] }
-    const items = data.data || [];
+    // Backend now returns data directly: [...]
+    const items = Array.isArray(data) ? data : [];
     
     return {
       data: items,
-      total: items.length, // Временно, пока backend не возвращает total
+      total: items.length,
     };
   },
 
@@ -42,8 +42,9 @@ export const dataProvider: DataProvider = {
     
     const { data } = await axios.get(url);
     
+    // Backend returns data directly
     return {
-      data: data.data || data,
+      data: data,
     };
   },
 
@@ -59,8 +60,9 @@ export const dataProvider: DataProvider = {
       },
     });
     
+    // Backend returns data directly: { id: ..., name: ... }
     return {
-      data: data.data || { id: data.data?.id },
+      data: data,
     };
   },
 
@@ -76,8 +78,10 @@ export const dataProvider: DataProvider = {
       },
     });
     
+    // Backend returns { success: true, message: "..." } for updates
+    // Return the id since that's what Refine expects
     return {
-      data: data.data || { id },
+      data: { id, ...data },
     };
   },
 
@@ -86,8 +90,9 @@ export const dataProvider: DataProvider = {
     
     const { data } = await axios.delete(url);
     
+    // Backend returns { success: true, message: "..." } for deletes
     return {
-      data: data.data || { id },
+      data: { id },
     };
   },
 
