@@ -116,48 +116,19 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white shadow-sm sticky top-0 z-40">
-        <div className="max-w-6xl mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">🍕 {t('app.title')}</h1>
-              <p className="text-sm text-gray-600">{t('app.subtitle')}</p>
+        <div className="max-w-6xl mx-auto px-3 py-3">
+          {/* First row: Title and Cart */}
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex-1 min-w-0">
+              <h1 className="text-lg font-bold text-gray-900 truncate">🍕 {t('app.title')}</h1>
+              <p className="text-xs text-gray-600 truncate">{t('app.subtitle')}</p>
             </div>
             
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-2 ml-2">
               <LanguageSwitch />
-              <div className="flex items-center space-x-2">
-                <MapPin className="w-4 h-4 text-gray-500" />
-                <select
-                  value={selectedCity || ''}
-                  onChange={(e) => setSelectedCity(Number(e.target.value))}
-                  className="text-sm border border-gray-300 rounded-lg px-2 py-1 focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                >
-                  <option value="">{t('location.selectCity') || 'Выберите город'}</option>
-                  {cities.map(city => (
-                    <option key={city.id} value={city.id}>
-                      {city.name}
-                    </option>
-                  ))}
-                </select>
-                {selectedCity && (
-                  <select
-                    value={selectedLocation}
-                    onChange={(e) => setSelectedLocation(e.target.value)}
-                    className="text-sm border border-gray-300 rounded-lg px-2 py-1 focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                  >
-                    <option value="">{t('location.placeholder')}</option>
-                    {filteredLocations.map(location => (
-                      <option key={location.location_id} value={location.location_id}>
-                        {location.name}
-                      </option>
-                    ))}
-                  </select>
-                )}
-              </div>
-              
               <button
                 onClick={() => setIsCartOpen(true)}
-                className="relative bg-orange-500 hover:bg-orange-600 text-white p-2 rounded-lg transition-colors"
+                className="relative bg-orange-500 hover:bg-orange-600 text-white p-2 rounded-lg transition-colors flex-shrink-0"
               >
                 <ShoppingCart className="w-5 h-5" />
                 {totalItems > 0 && (
@@ -167,6 +138,37 @@ export default function Home() {
                 )}
               </button>
             </div>
+          </div>
+          
+          {/* Second row: Location selectors */}
+          <div className="flex items-center space-x-2">
+            <MapPin className="w-4 h-4 text-gray-500 flex-shrink-0" />
+            <select
+              value={selectedCity || ''}
+              onChange={(e) => setSelectedCity(Number(e.target.value))}
+              className="text-sm border border-gray-300 rounded-lg px-2 py-1 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 flex-1 min-w-0"
+            >
+              <option value="">{t('location.selectCity') || 'Город'}</option>
+              {cities.map(city => (
+                <option key={city.id} value={city.id}>
+                  {city.name}
+                </option>
+              ))}
+            </select>
+            {selectedCity && (
+              <select
+                value={selectedLocation}
+                onChange={(e) => setSelectedLocation(e.target.value)}
+                className="text-sm border border-gray-300 rounded-lg px-2 py-1 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 flex-1 min-w-0"
+              >
+                <option value="">{t('location.placeholder') || 'Точка'}</option>
+                {filteredLocations.map(location => (
+                  <option key={location.location_id} value={location.location_id}>
+                    {location.name}
+                  </option>
+                ))}
+              </select>
+            )}
           </div>
         </div>
       </header>
