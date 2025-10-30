@@ -1,4 +1,3 @@
-
 # Multi-stage build for production frontend
 FROM node:20-alpine AS builder
 WORKDIR /app
@@ -29,7 +28,7 @@ FROM nginx:alpine
 # Copy built files to nginx
 COPY --from=builder /app/dist /usr/share/nginx/html
 
-# Create nginx configuration using cat with heredoc (правильный способ!)
+# Create nginx configuration with API proxy
 RUN cat > /etc/nginx/conf.d/default.conf <<'EOF'
 server {
     listen 80;
@@ -51,6 +50,19 @@ server {
     gzip_vary on;
     gzip_min_length 1024;
     gzip_types text/plain text/css text/xml text/javascript application/x-javascript application/javascript application/xml+rss application/json;
+    
+    # Proxy API requests to backend - КРИТИЧНО: сохраняем /api в пути!
+    location /api/ {
+        proxy_pass https://api.pizzamat.aibusiness.kz/api/;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_cache_bypass $http_upgrade;
+    }
     
     # SPA routing - all routes go to index.html
     location / {
