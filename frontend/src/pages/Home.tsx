@@ -117,16 +117,17 @@ export default function Home() {
     console.log('Auto-select location effect:', {
       filteredLocationsCount: filteredLocations.length,
       currentSelection: selectedLocation,
-      firstLocation: filteredLocations[0]?.location_id
+      firstLocation: filteredLocations[0]?.id
     });
     
     if (filteredLocations.length > 0) {
       // Check if current selection is valid for filtered locations
-      const isValidSelection = filteredLocations.some(loc => loc.location_id === selectedLocation);
+      // Use id instead of location_id since location_id is null in database
+      const isValidSelection = filteredLocations.some(loc => String(loc.id) === selectedLocation);
       
       if (!isValidSelection) {
-        // Auto-select first location
-        const firstLocationId = filteredLocations[0].location_id;
+        // Auto-select first location using id
+        const firstLocationId = String(filteredLocations[0].id);
         console.log('Auto-selecting location:', firstLocationId);
         setSelectedLocation(firstLocationId);
       }
@@ -199,7 +200,7 @@ export default function Home() {
               >
                 <option value="">{t('location.placeholder') || 'Точка'}</option>
                 {filteredLocations.map(location => (
-                  <option key={location.location_id} value={location.location_id}>
+                  <option key={location.id} value={String(location.id)}>
                     {location.name}
                   </option>
                 ))}
