@@ -56,6 +56,11 @@ export default function Home() {
         locationsRes.json(),
       ]);
 
+      console.log('Categories loaded:', categoriesData);
+      console.log('Products loaded:', productsData);
+      console.log('Cities loaded:', citiesData);
+      console.log('Locations loaded:', locationsData);
+      
       if (categoriesData.success) setCategories(categoriesData.data);
       if (productsData.success) setProducts(productsData.data);
       if (citiesData.success) {
@@ -76,14 +81,28 @@ export default function Home() {
   };
 
   const handleCheckout = () => {
-    if (!selectedLocation) {
-      alert(t('messages.selectLocation'));
+    console.log('Checkout attempt:', {
+      selectedCity,
+      selectedLocation,
+      filteredLocations,
+      items: items.length
+    });
+    
+    if (!selectedCity) {
+      alert(t('messages.selectCity') || 'Пожалуйста, выберите город');
       return;
     }
+    
+    if (!selectedLocation || selectedLocation === '') {
+      alert(t('messages.selectLocation') || 'Пожалуйста, выберите точку выдачи');
+      return;
+    }
+    
     if (items.length === 0) {
-      alert(t('messages.emptyCart'));
+      alert(t('messages.emptyCart') || 'Корзина пуста');
       return;
     }
+    
     setIsCartOpen(false);
     navigate('/checkout', { state: { cartItems: items, selectedLocation } });
   };
@@ -173,35 +192,38 @@ export default function Home() {
         </div>
       </header>
 
-      <div className="bg-white border-b">
-        <div className="max-w-6xl mx-auto px-4">
-          <div className="flex space-x-1 overflow-x-auto py-3">
-            <button
-              onClick={() => setSelectedCategory('all')}
-              className={`px-4 py-2 rounded-lg font-medium whitespace-nowrap transition-colors ${
-                selectedCategory === 'all'
-                  ? 'bg-orange-100 text-orange-700'
-                  : 'text-gray-600 hover:text-gray-900'
-              }`}
-            >
-              {t('navigation.all')}
-            </button>
-            {categories.map(category => (
+      {/* Categories filter - only show if categories loaded */}
+      {categories.length > 0 && (
+        <div className="bg-white border-b">
+          <div className="max-w-6xl mx-auto px-3">
+            <div className="flex space-x-1 overflow-x-auto py-2 scrollbar-hide">
               <button
-                key={category.id}
-                onClick={() => setSelectedCategory(category.id)}
-                className={`px-4 py-2 rounded-lg font-medium whitespace-nowrap transition-colors ${
-                  selectedCategory === category.id
-                    ? 'bg-orange-100 text-orange-700'
-                    : 'text-gray-600 hover:text-gray-900'
+                onClick={() => setSelectedCategory('all')}
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium whitespace-nowrap transition-colors flex-shrink-0 ${
+                  selectedCategory === 'all'
+                    ? 'bg-orange-500 text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                 }`}
               >
-                {category.name}
+                {t('navigation.all') || 'Все'}
               </button>
-            ))}
+              {categories.map(category => (
+                <button
+                  key={category.id}
+                  onClick={() => setSelectedCategory(category.id)}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium whitespace-nowrap transition-colors flex-shrink-0 ${
+                    selectedCategory === category.id
+                      ? 'bg-orange-500 text-white'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  {category.name}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       <main className="max-w-6xl mx-auto px-4 py-6">
         {!selectedCity && (
